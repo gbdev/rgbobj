@@ -1,0 +1,219 @@
+.\"
+.\" Copyright © 2021 Eldred Habert
+.\"
+.\" SPDX-License-Identifier: MIT
+.\"
+.Dd May 2, 2021
+.Dt RGBOBJ 1
+.Os
+.Sh NAME
+.Nm rgbobj
+.Nd display information from RGBDS object files
+.Sh SYNOPSIS
+.Nm
+.Op Fl AV
+.Op Fl a Ar what
+.Op Fl Fl color Ar when
+.Op Fl h Ar what
+.Op Fl p Ar what
+.Op Fl r Ar format
+.Op Fl s Ar what
+.Op Fl y Ar what
+.Ar path
+.Sh DESCRIPTION
+.Nm
+allows examining RGBDS object files in a human-friendly manner.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl A , Fl Fl all
+Implies
+.Cm all
+for all display types.
+Note that this overrides what was disabled by other options.
+.It Fl a Ar what , Fl Fl assertion Ar what
+Keyword list of what to display about assertions.
+The following keywords are accepted:
+.Bl -tag -width Ds -compact
+.It Cm data
+The assertion's RPN expression, in its raw "byte array" form.
+Not enabled by
+.Cm all .
+.It Cm message
+The assertion's message, or
+.Dq \&No message
+if the assertion has none.
+.It Cm offset
+The assertion's offset within the section it's in.
+.It Cm pcoffset
+The assertion's PC offset within the section it's in.
+.Pq Normally identical to the offset.
+.It Cm rpn
+The assertion's expression.
+How it's pretty-printed is controlled by
+.Fl r .
+.It Cm section
+Which section the assertion is in.
+.It Cm src
+Where the assertion was defined.
+.It Cm type
+The assertion's type (warning, error, fatal).
+.El
+.It Fl Fl color Ar when
+Whether to color output.
+Can be one of (case-insensitive)
+.Cm always , auto
+(the default), or
+.Cm never .
+If
+.Cm auto ,
+color will be used if outputting to a terminal, and otherwise not.
+.It Fl h Ar what , Fl Fl header Ar what
+Keyword list of what to display about the object file in general.
+The following keywords are accepted:
+.Bl -tag -width Ds -compact
+.It Cm counts
+Report how many symbols, sections and assertions there are.
+.It Cm size
+Report the file's size.
+.El
+.It Fl p Ar what , Fl Fl patch Ar what
+Keyword list of what to display about section patches.
+The following keywords are accepted:
+.Bl -tag -width Ds -compact
+.It Cm count
+How many patches each section contains.
+.It Cm data
+The patch's RPN expression, in its raw "byte array" form.
+Not enabled by
+.Cm all .
+.It Cm offset
+The patch's offset within the section it's in.
+.It Cm pcoffset
+The patch's PC offset within its PC section.
+.It Cm pcsection
+The patch's PC section.
+.It Cm rpn
+The patch's expression.
+How it's pretty-printed is controlled by
+.Fl r .
+.It Cm src
+Where the patch was defined.
+.It Cm type
+The patch's type (byte, word, long, jr).
+.El
+.Pp
+Note that patches will not be printed if sections are skipped entirely.
+.It Fl r Ar format , Fl Fl rpn Ar format
+How to pretty-print RPN expressions.
+Can be either
+.Cm expr
+(the default), for printing the expression in Reverse Polish Notation, or
+.Cm infix ,
+to print the expression in a more natural way.
+The argument's casing is ignored.
+.It Fl s Ar what , Fl Fl section Ar format
+Keyword list of what to display about sections.
+The following keywords are accepted:
+.Bl -tag -width Ds -compact
+.It Cm align
+The section's alignment and alignment offset, omitted if not specified.
+.It Cm bank
+The section's bank, or
+.Dq Floating bank
+if it isn't fixed.
+.It Cm data
+The section's data bytes.
+Not enabled by
+.Cm all .
+Bytes are grouped 2 by 2, for readability, but their order is unchanged.
+If color is enabled
+.Pq see Fl Fl color ,
+bytes affected by patches will be shown with a magenta background.
+.It Cm name
+The section's name, decoded as UTF-8.
+.It Cm org
+The section's address, or
+.Dq Floating
+if it isn't fixed.
+.It Cm size
+The section's size.
+.It Cm type
+The section's type (ROM0, ROMX, etc.) and modifier (normal, union, fragment).
+.El
+.Pp
+Note that the display is altered if the name is requested: the first line will be a
+.Xr rgbasm 5
+.Ql SECTION
+directive containing the relevant requested info.
+.It Fl y Ar what , Fl Fl symbol Ar what
+Keyword list of what to display about symbols.
+The following keywords are accepted:
+.Bl -tag -width Ds -compact
+.It Cm name
+The symbol's name, decoded as UTF-8.
+.It Cm section
+The section the symbol is in, or
+.Dq Constant
+if the symbol is a constant.
+.It Cm src
+Where the symbol was defined.
+.It Cm type
+The symbol's visibility type (import, local, export).
+.It Cm value
+The symbol's value, if a constant, otherwise its offset within its section.
+.El
+.El
+.Ss Keyword lists
+A keyword list is a comma-separated list of case-insensitive keywords, with whitespace ignored around the keywords.
+Trailing commas are not allowed (though this is subject to change in the future).
+A keyword can be prefixed with a dash
+.Ql -
+to negate it; note that whitespace is not permitted between the dash and the keyword, and that the first keyword in a list may not be negated.
+The special keyword
+.Ql all
+is also accepted, enabling (or disabling, if negated) all keywords, unless specified otherwise.
+.Pp
+Keyword lists can be omitted, in which case they default to their "min" value, as specified in their respective description.
+If the option is omitted entirely, however, nothing will be selected, and thus, nothing will be printed.
+.Sh EXAMPLES
+Display almost all info ("verbose"):
+.Dl $ rgbobj -A player.o
+.Pp
+Display everything ("super verbose"):
+.Dl $ rgbobj -A -s data -p data player.o
+.Sh CAVEATS
+The output format is designed for human consumption, and may change from release to release.
+Use in scripts is at your own responsibility; it is instead recommended to parse the object files directly, as documented in
+.Xr rgbds 5 .
+.Pp
+The usual option parsing precautions apply: if the file path to be processed begins with a dash, it will be treated as an option.
+Similarly, if the file name follows an option taking a keyword list, but the keyword list is omitted, then the file path will be treated as a keyword list.
+.Ql --
+can bypass these problems:
+.Dl $ rgbobj -s all -- -funky-.o
+.Dl $ rgbobj -p count -s -- entities.o
+.Pp
+Excess bytes left after all data has been properly read are silently ignored.
+This may be turned into a warning in the future.
+.Pp
+Note that the entire object file is read no matter what info was required for printing, so the program will fail regardless if the object file is too corrupt, including if it has been truncated.
+.Pq Padding the file with zeros might work around this, though not always.
+.Sh BUGS
+The reported size
+.Pq Ql Fl h Cm size
+is the file's total size, not how large the object data is.
+It may also report 0 bytes, e.g. if the input file is a FIFO.
+.Pp
+The output format may be flakey if not requesting at least the name when it's present.
+.Pp
+Please report other bugs on
+.Lk https://github.com/ISSOtm/rgbobj/issues GitHub .
+.Sh SEE ALSO
+.Xr rgbasm 1 ,
+.Xr rgblink 1 ,
+.Xr rgbds 5 ,
+.Xr rgbds 7
+.Sh HISTORY
+.Nm
+was written by Eldred Habert (ISSOtm), based on an earlier C version by Bob Koon (BlitterObject) which fell behind updates to RGBDS.

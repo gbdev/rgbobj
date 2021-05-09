@@ -1,0 +1,28 @@
+[package]
+name = "rgbobj"
+version = "0.1.0" # Remember to sync html_root_url in `main.rs`
+authors = ["ISSOtm <me@eldred.fr>"]
+edition = "2018"
+description = "A command-line program to print out RGBDS object files."
+readme = "README.md"
+repository = "https://github.com/gbdev/rgbobj"
+license = "MIT"
+keywords = ["rgbds", "gameboy", "asm", "assembly", "gamedev"]
+categories = ["command-line-utilities", "development-tools::debugging", "game-development"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+atty = "0.2.14"
+rgbds-obj = "0.1.0"
+termcolor = "1.1.2"
+
+[dependencies.clap]
+version = "3.0.0-beta.2"
+default-features = false
+features = [ "std", "suggestions", "color", "wrap_help" ]
+
+
+[profile.release]
+lto = true
+panic = "abort"
