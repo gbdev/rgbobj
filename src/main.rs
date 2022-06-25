@@ -13,7 +13,6 @@ use termcolor::{ColorChoice, ColorSpec, StandardStream, WriteColor};
 mod args;
 use args::features::*;
 use args::{Args, RpnPrintType};
-mod util;
 
 fn main() {
     let args = args::parse();
@@ -331,8 +330,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                     if args.color_out != ColorChoice::Never {
                         for patch in data.patches() {
                             let (ofs, size) = (patch.offset(), patch.patch_type().size());
-                            let index =
-                                util::partition_point(&patched_ranges, |&(val, _)| val <= ofs);
+                            let index = patched_ranges.partition_point(|&(val, _)| val <= ofs);
                             patched_ranges.insert(index, (ofs, size));
                         }
                     }
