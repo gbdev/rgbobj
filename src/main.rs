@@ -509,12 +509,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                             error!("Empty patch RPN expression");
                         } else {
                             if args.patch.get(PatchFeatures::RPN) {
-                                println!(
-                                    "{}{}{} expression:",
-                                    indent,
-                                    patch_indent,
-                                    args.rpn.name()
-                                );
+                                println!("{}{}{} expression:", indent, patch_indent, args.rpn);
                                 if matches!(args.rpn, RpnPrintType::Infix) {
                                     println!("{}{}    {:#}", indent, patch_indent, expr);
                                 } else {
@@ -641,7 +636,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                 error!("Empty assertion RPN expression");
             } else {
                 if args.assertion.get(AssertionFeatures::RPN) {
-                    println!("{}{} expression:", indent, args.rpn.name());
+                    println!("{}{} expression:", indent, args.rpn);
                     if matches!(args.rpn, RpnPrintType::Infix) {
                         println!("{}    {:#}", indent, expr);
                     } else {
