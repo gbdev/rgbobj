@@ -1,7 +1,7 @@
 //! All that appertains to command-line parsing.
 
 use clap::builder::PossibleValue;
-use clap::{arg, command, value_parser, ValueEnum};
+use clap::{arg, command, value_parser, Command, ValueEnum};
 use std::ffi::OsString;
 use std::fmt::{self, Display, Formatter};
 use std::stringify;
@@ -280,9 +280,8 @@ impl ValueEnum for RpnPrintType {
     }
 }
 
-/// Parse command-line arguments.
-pub fn parse() -> Args {
-    let matches = command!()
+fn get_cmd() -> Command<'static> {
+    command!()
         .about("Prints out RGBDS object files in a human-friendly manner")
         .after_help("A keyword list is a comma-separated list of keywords, with whitespace ignored around keywords.\nA keyword can be prefixed with a dash '-', negating its effect; note that whitespace is not permitted between the dash and the keyword, and that the first keyword may not be negated.\nKeyword lists can be omitted, in which case they default to the \"min\" value.\n\nSee `man 1 rgbobj` for more information, including what each keyword does.")
         .arg(arg!(-A --all "Display \"all\" output for all output types; this overrides other display options"))
@@ -294,7 +293,11 @@ pub fn parse() -> Args {
         .arg(arg!(-p --patch <features> "Keyword list of what to display about patches").value_parser(value_parser!(PatchFeatures)).default_value(PatchFeatures::DEFAULT).required(false))
         .arg(arg!(-a --assertion <features> "Keyword list of what to display about assertions").value_parser(value_parser!(AssertionFeatures)).default_value(AssertionFeatures::DEFAULT).required(false))
         .arg(arg!(<file> "Path to the object file to inspect"))
-    .get_matches();
+}
+
+/// Parse command-line arguments.
+pub fn parse() -> Args {
+    let matches = get_cmd().get_matches();
 
     let (color_out, color_err) = match matches.get_one("color").unwrap() {
         Colorization::Always => (ColorChoice::Always, ColorChoice::Always),
@@ -366,4 +369,14 @@ pub struct Args {
 
     pub color_out: ColorChoice,
     pub color_err: ColorChoice,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_ok() {
+        get_cmd().debug_assert();
+    }
 }
