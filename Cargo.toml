@@ -1,6 +1,6 @@
 [package]
 name = "rgbobj"
-version = "0.2.0" # Remember to sync html_root_url in `main.rs`
+version = "0.2.1"
 authors = ["ISSOtm <me@eldred.fr>"]
 edition = "2018"
 description = "A command-line program to print out RGBDS object files."
@@ -15,7 +15,7 @@ categories = ["command-line-utilities", "development-tools::debugging", "game-de
 [dependencies]
 atty = "0.2.14"
 paste = "1.0"
-rgbds-obj = "0.1.0"
+rgbds-obj = "0.1.1"
 termcolor = "1.1.2"
 
 [dependencies.clap]
