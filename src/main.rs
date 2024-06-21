@@ -330,10 +330,7 @@ fn work(args: &Args) -> Result<(), MainError> {
 
             if args.section.get(SectionFeatures::SIZE) {
                 let len = section.size();
-                println!(
-                    "{indent}${len:04x} ({len}) bytes{}",
-                    plural!(len, "s")
-                );
+                println!("{indent}${len:04x} ({len}) bytes{}", plural!(len, "s"));
             }
 
             if let Some(data) = section.type_data().data() {
