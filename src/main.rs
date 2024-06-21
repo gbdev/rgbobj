@@ -13,6 +13,9 @@ use args::features::*;
 use args::{Args, RpnPrintType};
 
 fn main() {
+    // Don't panic when printing to a closed pipe, e.g. with `rgbobj | head`.
+    sigpipe::reset();
+
     let args = args::parse();
 
     if let Err(err) = work(&args) {
