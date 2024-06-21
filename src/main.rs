@@ -151,7 +151,13 @@ fn work(args: &Args) -> Result<(), MainError> {
     if args.symbol.any() && !object.symbols().is_empty() {
         print_header!("Symbols");
 
+        let mut printed_first = false;
+
         for symbol in object.symbols() {
+            if printed_first {
+                println!();
+            }
+
             let mut printed_lines = 0;
 
             if args.symbol.get(SymbolFeatures::NAME) {
@@ -237,7 +243,7 @@ fn work(args: &Args) -> Result<(), MainError> {
             }
 
             if printed_lines > 1 {
-                println!();
+                printed_first = true;
             }
         }
     }
@@ -247,7 +253,13 @@ fn work(args: &Args) -> Result<(), MainError> {
     if args.section.any() && !object.sections().is_empty() {
         print_header!("Sections");
 
+        let mut printed_first = false;
+
         for section in object.sections().iter() {
+            if printed_first {
+                println!();
+            }
+
             let mut printed_lines = 0;
             let mut first_line_empty = true;
 
@@ -585,7 +597,7 @@ fn work(args: &Args) -> Result<(), MainError> {
             }
 
             if printed_lines > 1 {
-                println!();
+                printed_first = true;
             }
         }
     }
@@ -595,7 +607,13 @@ fn work(args: &Args) -> Result<(), MainError> {
     if args.assertion.any() && !object.assertions().is_empty() {
         print_header!("Assertions");
 
+        let mut printed_first = false;
+
         for assertion in object.assertions() {
+            if printed_first {
+                println!();
+            }
+
             let mut printed_lines = 0;
             let mut first_line_empty = true;
 
@@ -721,7 +739,7 @@ fn work(args: &Args) -> Result<(), MainError> {
             }
 
             if printed_lines > 1 {
-                println!();
+                printed_first = true;
             }
         }
     }
