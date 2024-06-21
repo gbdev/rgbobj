@@ -161,7 +161,7 @@ pub mod features {
     ///
     /// Syntax: (name: feature1, feature2, +feature3, -feature4, ...)
     ///
-    /// Each feature must be an identifier (keywords can be "escaped": `r#type`).
+    /// Each feature must be an identifier or a keyword.
     /// Prefixing a feature with a `+` makes it enabled by default, whereas prefixing it with `-` prevents the pseudo-feature `all` from enabling it.
     macro_rules! features {
         ($name:ident: $($args:tt)*) => {
@@ -222,10 +222,10 @@ pub mod features {
     // Implementations
 
     features!(HeaderFeatures: +size, counts);
-    features!(SymbolFeatures: +name, r#type, src, section, value);
-    features!(SectionFeatures: +name, size, r#type, org, bank, align, data);
-    features!(PatchFeatures: +count, src, offset, pcsection, pcoffset, r#type, rpn, data);
-    features!(AssertionFeatures: +src, +offset, section, pcoffset, r#type, rpn, -data, +message);
+    features!(SymbolFeatures: +name, type, src, section, value);
+    features!(SectionFeatures: +name, size, type, org, bank, align, data);
+    features!(PatchFeatures: +count, src, offset, pcsection, pcoffset, type, rpn, data);
+    features!(AssertionFeatures: +src, +offset, section, pcoffset, type, rpn, -data, +message);
 }
 use features::*;
 
