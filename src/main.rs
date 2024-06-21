@@ -119,6 +119,7 @@ fn work(args: &Args) -> Result<(), MainError> {
             println!($str);
             println!("{}", "-".repeat($str.len()));
             reset!();
+            println!();
         };
     }
 
@@ -151,13 +152,10 @@ fn work(args: &Args) -> Result<(), MainError> {
         print_header!("Symbols");
 
         for symbol in object.symbols() {
-            println!();
-
             if args.symbol.get(SymbolFeatures::NAME) {
                 print!("{}", String::from_utf8_lossy(symbol.name()));
                 if args.symbol.get(SymbolFeatures::TYPE) {
-                    // Pad between the two
-                    print!(" ");
+                    print!(" "); // Pad between the two
                 } else {
                     println!();
                 }
@@ -166,11 +164,12 @@ fn work(args: &Args) -> Result<(), MainError> {
                 println!("[{}]", symbol.visibility().name());
             }
 
-            let indent = if args.symbol.get(SymbolFeatures::NAME) {
-                "    "
-            } else {
-                ""
-            };
+            let indent =
+                if args.symbol.get(SymbolFeatures::NAME) || args.symbol.get(SymbolFeatures::TYPE) {
+                    "    "
+                } else {
+                    ""
+                };
 
             if let Some(data) = symbol.visibility().data() {
                 if args.symbol.get(SymbolFeatures::SRC) {
@@ -219,18 +218,18 @@ fn work(args: &Args) -> Result<(), MainError> {
                     } else {
                         print!("Constant");
                     }
-
                     if args.symbol.get(SymbolFeatures::VALUE) {
-                        print!(" ");
+                        print!(" "); // Pad between the two
                     } else {
                         println!();
                     }
                 }
-
                 if args.symbol.get(SymbolFeatures::VALUE) {
                     println!("[@ ${:04x}]", data.value());
                 }
             }
+
+            println!();
         }
     }
 
@@ -240,8 +239,6 @@ fn work(args: &Args) -> Result<(), MainError> {
         print_header!("Sections");
 
         for section in object.sections().iter() {
-            println!();
-
             let mut line_empty = true; // Has anything been printed on this line?
 
             if args.section.get(SectionFeatures::NAME) {
@@ -548,6 +545,8 @@ fn work(args: &Args) -> Result<(), MainError> {
                     }
                 }
             }
+
+            println!();
         }
     }
 
@@ -557,7 +556,6 @@ fn work(args: &Args) -> Result<(), MainError> {
         print_header!("Assertions");
 
         for assertion in object.assertions() {
-            println!();
             let mut line_empty = true;
 
             if args.assertion.get(AssertionFeatures::SRC) {
@@ -676,6 +674,8 @@ fn work(args: &Args) -> Result<(), MainError> {
                     println!("{indent}Message: \"{}\"", String::from_utf8_lossy(msg));
                 }
             }
+
+            println!();
         }
     }
 

@@ -96,8 +96,10 @@ pub mod features {
                         .enumerate()
                         .find(|(_, &candidate)| keyword == candidate)
                         .ok_or_else(|| {
-                            let mut msg =
-                                format!("Unknown keyword \"{}\", expected one of: all, none", keyword);
+                            let mut msg = format!(
+                                "Unknown keyword \"{}\", expected one of: all, none",
+                                keyword
+                            );
                             for keyword in F::KEYWORDS {
                                 msg.push_str(", ");
                                 msg.push_str(keyword);
