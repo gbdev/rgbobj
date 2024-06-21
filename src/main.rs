@@ -108,7 +108,7 @@ fn work(args: &Args) -> Result<(), MainError> {
         };
     }
 
-    macro_rules! header {
+    macro_rules! print_header {
         ($str:literal) => {
             println!();
             println!();
@@ -146,7 +146,7 @@ fn work(args: &Args) -> Result<(), MainError> {
     // Print symbols
 
     if args.symbol.any() && !object.symbols().is_empty() {
-        header!("Symbols");
+        print_header!("Symbols");
 
         for symbol in object.symbols() {
             println!();
@@ -235,7 +235,7 @@ fn work(args: &Args) -> Result<(), MainError> {
     // Print sections
 
     if args.section.any() && !object.sections().is_empty() {
-        header!("Sections");
+        print_header!("Sections");
 
         for section in object.sections().iter() {
             println!();
@@ -548,7 +548,7 @@ fn work(args: &Args) -> Result<(), MainError> {
     // Print assertions
 
     if args.assertion.any() && !object.assertions().is_empty() {
-        header!("Assertions");
+        print_header!("Assertions");
 
         for assertion in object.assertions() {
             println!();
