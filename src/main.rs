@@ -174,12 +174,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                 printed_lines += 1;
             }
 
-            let indent =
-                if args.symbol.get(SymbolFeatures::NAME) || args.symbol.get(SymbolFeatures::TYPE) {
-                    "    "
-                } else {
-                    ""
-                };
+            let indent = if printed_lines == 0 { "" } else { "    " };
 
             if let Some(data) = symbol.visibility().data() {
                 if args.symbol.get(SymbolFeatures::SRC) {
