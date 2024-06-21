@@ -416,7 +416,11 @@ fn work(args: &Args) -> Result<(), MainError> {
                 if args.patch.any() {
                     if args.patch.get(PatchFeatures::COUNT) {
                         let len = data.patches().len();
-                        println!("{indent}{len} patch{}:", plural!(len, "es"));
+                        println!(
+                            "{indent}{len} patch{}{}",
+                            plural!(len, "es"),
+                            if len > 0 { ":" } else { "" }
+                        );
                     }
 
                     for patch in data.patches() {
