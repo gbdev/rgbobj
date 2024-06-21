@@ -157,7 +157,7 @@ fn work(args: &Args) -> Result<(), MainError> {
             if args.symbol.get(SymbolFeatures::NAME) {
                 print!("{}", String::from_utf8_lossy(symbol.name()));
                 if args.symbol.get(SymbolFeatures::TYPE) {
-                    print!(" "); // Pad between the two
+                    print!(" "); // Pad between the symbol name and type
                 } else {
                     println!();
                     printed_lines += 1;
@@ -224,7 +224,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                         print!("Constant");
                     }
                     if args.symbol.get(SymbolFeatures::VALUE) {
-                        print!(" "); // Pad between the two
+                        print!(" "); // Pad between the section name and value
                     } else {
                         println!();
                         printed_lines += 1;
@@ -336,15 +336,19 @@ fn work(args: &Args) -> Result<(), MainError> {
                 printed_lines += 1;
             }
 
-            let indent = if first_line_empty {
-                ""
-            } else {
-                "    "
-            };
+            let indent = if first_line_empty { "" } else { "    " };
 
             if args.section.get(SectionFeatures::SIZE) {
                 let len = section.size();
-                println!("{indent}${len:04x} ({len}) byte{}", plural!(len, "s"));
+                println!(
+                    "{indent}${len:04x} ({len}) byte{}{}",
+                    plural!(len, "s"),
+                    if len > 0 && args.section.get(SectionFeatures::DATA) {
+                        ":"
+                    } else {
+                        ""
+                    }
+                );
                 printed_lines += 1;
             }
 
@@ -431,13 +435,25 @@ fn work(args: &Args) -> Result<(), MainError> {
                     }
                 }
 
+                if args.section.get(SectionFeatures::DATA)
+                    && !data.data().is_empty()
+                    && args.patch.any()
+                {
+                    println!(); // Pad between the section data and patches
+                    printed_lines += 1;
+                }
+
                 if args.patch.any() {
                     if args.patch.get(PatchFeatures::COUNT) {
                         let len = data.patches().len();
                         println!(
                             "{indent}{len} patch{}{}",
                             plural!(len, "es"),
-                            if len > 0 { ":" } else { "" }
+                            if len > 0 && args.patch.any_besides(PatchFeatures::COUNT) {
+                                ":"
+                            } else {
+                                ""
+                            }
                         );
                         printed_lines += 1;
                     }
@@ -506,11 +522,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                             printed_lines += 1;
                         }
 
-                        let patch_indent = if patch_line_empty {
-                            ""
-                        } else {
-                            "    "
-                        };
+                        let patch_indent = if patch_line_empty { "" } else { "    " };
 
                         if args.patch.get(PatchFeatures::PCSECTION)
                             || args.patch.get(PatchFeatures::PCOFFSET)
@@ -642,11 +654,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                 printed_lines += 1;
             }
 
-            let indent = if first_line_empty {
-                ""
-            } else {
-                "    "
-            };
+            let indent = if first_line_empty { "" } else { "    " };
 
             if args.assertion.get(AssertionFeatures::SECTION)
                 || args.assertion.get(AssertionFeatures::PCOFFSET)

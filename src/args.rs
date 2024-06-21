@@ -35,6 +35,8 @@ pub mod features {
 
         /// Is any feature enabled?
         fn any(&self) -> bool;
+        /// Is any feature enabled besides the given one?
+        fn any_besides(&self, which: usize) -> bool;
         /// Is a given feature enabled?
         fn get(&self, which: usize) -> bool;
     }
@@ -206,6 +208,10 @@ pub mod features {
 
                 fn any(&self) -> bool {
                     self.0 != 0
+                }
+
+                fn any_besides(&self, which: usize) -> bool {
+                    self.0 & !(1 << which) != 0
                 }
 
                 fn get(&self, which: usize) -> bool {
