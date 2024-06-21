@@ -33,6 +33,19 @@ fn main() {
     }
 }
 
+macro_rules! plural {
+    ($n:expr, $many:expr, $one:expr) => {
+        if ($n) == 1 {
+            $many
+        } else {
+            $one
+        }
+    };
+    ($n:expr, $many:expr) => {
+        plural!($n, $many, "")
+    };
+}
+
 fn work(args: &Args) -> Result<(), MainError> {
     macro_rules! error {
         ($($args:tt)+) => {
@@ -118,7 +131,7 @@ fn work(args: &Args) -> Result<(), MainError> {
     reset!();
     if args.header.get(HeaderFeatures::SIZE) {
         let len = file.get_ref().metadata().unwrap().len();
-        print!(" [{} byte{}]", len, if len == 1 { "" } else { "s" });
+        print!(" [{} byte{}]", len, plural!(len, "s"));
     }
     println!(":  RGBDS object v9 revision {}", object.revision());
 
@@ -323,7 +336,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                     indent,
                     len,
                     len,
-                    if len == 1 { "" } else { "s" }
+                    plural!(len, "s")
                 );
             }
 
@@ -411,7 +424,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                 if args.patch.any() {
                     if args.patch.get(PatchFeatures::COUNT) {
                         let len = data.patches().len();
-                        println!("{}{} patch{}:", indent, len, if len == 1 { "" } else { "es" });
+                        println!("{}{} patch{}:", indent, len, plural!(len, "es"));
                     }
 
                     for patch in data.patches() {
@@ -527,7 +540,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                                     indent,
                                     patch_indent,
                                     len,
-                                    if len == 1 { "" } else { "s" }
+                                    plural!(len, "s")
                                 );
                                 print!("{}{}    [{:02x}", indent, patch_indent, expr.bytes()[0]);
                                 // TODO: wrap this more nicely
@@ -651,12 +664,7 @@ fn work(args: &Args) -> Result<(), MainError> {
 
                 if args.assertion.get(AssertionFeatures::DATA) {
                     let len = assertion.expr().bytes().len();
-                    println!(
-                        "{}RPN data ({} byte{}):",
-                        indent,
-                        len,
-                        if len == 1 { "" } else { "s" }
-                    );
+                    println!("{}RPN data ({} byte{}):", indent, len, plural!(len, "s"));
                     print!("{}    [{:02x}", indent, expr.bytes()[0]);
                     // TODO: wrap this more nicely
                     for byte in &expr.bytes()[1..] {
