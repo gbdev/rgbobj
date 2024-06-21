@@ -27,14 +27,26 @@ fn main() {
             .unwrap();
         write!(stderr, "error: ").unwrap();
         stderr.reset().unwrap();
-        writeln!(stderr, "{}", err).unwrap();
+        writeln!(stderr, "{err}").unwrap();
 
         process::exit(1);
     }
 }
 
+macro_rules! plural {
+    ($n:expr, $many:expr, $one:expr) => {
+        if ($n) == 1 {
+            $one
+        } else {
+            $many
+        }
+    };
+    ($n:expr, $many:expr) => {
+        plural!($n, $many, "")
+    };
+}
+
 fn work(args: &Args) -> Result<(), MainError> {
-    // TODO: improve pluralization ("1 patches"...)
     macro_rules! error {
         ($($args:tt)+) => {
             let mut stderr = StandardStream::stderr(args.color_err);
@@ -118,7 +130,8 @@ fn work(args: &Args) -> Result<(), MainError> {
     );
     reset!();
     if args.header.get(HeaderFeatures::SIZE) {
-        print!(" [{} bytes]", file.get_ref().metadata().unwrap().len());
+        let len = file.get_ref().metadata().unwrap().len();
+        print!(" [{len} byte{}]", plural!(len, "s"));
     }
     println!(":  RGBDS object v9 revision {}", object.revision());
 
@@ -160,12 +173,12 @@ fn work(args: &Args) -> Result<(), MainError> {
             if let Some(data) = symbol.visibility().data() {
                 if args.symbol.get(SymbolFeatures::SRC) {
                     // TOOD: wrap this more nicely
-                    print!("{}", indent);
+                    print!("{indent}");
 
                     let (id, line_no) = data.source();
                     if let Err(err) = object.walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
                         if let Some((id, line)) = node.parent() {
-                            print!("({}) -> ", line);
+                            print!("({line}) -> ");
                             // REPT nodes are prefixed by their parent's name
                             if matches!(node.type_data(), NodeType::Rept(..)) {
                                 print!(
@@ -189,11 +202,11 @@ fn work(args: &Args) -> Result<(), MainError> {
                         error!("Invalid symbol file stack: {}", err);
                     }
 
-                    println!("({})", line_no);
+                    println!("({line_no})");
                 }
 
                 if args.symbol.get(SymbolFeatures::SECTION) {
-                    print!("{}", indent);
+                    print!("{indent}");
                     if let Some(id) = data.section() {
                         print!(
                             "SECTION: \"{}\"",
@@ -233,7 +246,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                 print!("SECTION");
                 if args.section.get(SectionFeatures::TYPE) {
                     if let Some(name) = section.modifier().name() {
-                        print!(" {}", name);
+                        print!(" {name}");
                     }
                 }
                 print!(" \"{}\"", String::from_utf8_lossy(section.name()));
@@ -249,7 +262,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                 // If the name has been printed, then the modifier also has been
                 if !args.section.get(SectionFeatures::NAME) {
                     if let Some(name) = section.modifier().name() {
-                        print!("{} ", name);
+                        print!("{name} ");
                     }
                 }
                 print!("{}", section.type_data().name());
@@ -261,7 +274,7 @@ fn work(args: &Args) -> Result<(), MainError> {
 
             if args.section.get(SectionFeatures::ORG) {
                 if let Some(org) = section.org() {
-                    print!("[${:04x}]", org);
+                    print!("[${org:04x}]");
                 } else if line_empty {
                     print!("Floating");
                 }
@@ -274,7 +287,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                     if !line_empty {
                         print!(", ");
                     }
-                    print!("BANK[${:04x}]", bank);
+                    print!("BANK[${bank:04x}]");
                 } else if line_empty {
                     print!("Floating bank");
                 }
@@ -286,12 +299,11 @@ fn work(args: &Args) -> Result<(), MainError> {
                 let ofs = section.align_ofs();
 
                 if align > 16 {
-                    warning!("Invalid alignment ({}) greater than 16", align);
+                    warning!("Invalid alignment ({align}) greater than 16");
                     // Skip checking for the other warning to avoid over-shifting
                 } else if ofs >= 1 << align {
                     warning!(
-                        "Invalid alignment offset ({}) greater than alignment size ({})",
-                        ofs,
+                        "Invalid alignment offset ({ofs}) greater than alignment size ({})",
                         1 << align
                     );
                 }
@@ -300,9 +312,9 @@ fn work(args: &Args) -> Result<(), MainError> {
                         print!(", ");
                     }
                     if ofs == 0 {
-                        print!("ALIGN[{}]", align);
+                        print!("ALIGN[{align}]");
                     } else {
-                        print!("ALIGN[{}, {}]", align, ofs);
+                        print!("ALIGN[{align}, {ofs}]");
                     }
                 }
 
@@ -318,7 +330,7 @@ fn work(args: &Args) -> Result<(), MainError> {
 
             if args.section.get(SectionFeatures::SIZE) {
                 let len = section.size();
-                println!("{}${:04x} ({}) bytes", indent, len, len);
+                println!("{indent}${len:04x} ({len}) byte{}", plural!(len, "s"));
             }
 
             if let Some(data) = section.type_data().data() {
@@ -341,7 +353,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                     for byte in data.data() {
                         // At the start of a new line, print indent (if any) and current offset
                         if i % 16 == 0 {
-                            print!("{}{:04x}:", indent, i);
+                            print!("{indent}{i:04x}:");
                             // If a line break occurred in the middle of a patched range, reinstate it
                             if patched_ranges.peek().map_or(false, |(ofs, _)| i > *ofs) {
                                 stdout.set_color(&patch_color_spec).unwrap();
@@ -355,7 +367,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                         if patched_ranges.peek().map_or(false, |(ofs, _)| i == *ofs) {
                             stdout.set_color(&patch_color_spec).unwrap();
                         }
-                        print!("{:02x}", byte);
+                        print!("{byte:02x}");
                         i += 1;
                         // If done with a patched range, go to the next one...
                         if patched_ranges
@@ -404,7 +416,8 @@ fn work(args: &Args) -> Result<(), MainError> {
 
                 if args.patch.any() {
                     if args.patch.get(PatchFeatures::COUNT) {
-                        println!("{}{} patches:", indent, data.patches().len());
+                        let len = data.patches().len();
+                        println!("{indent}{len} patch{}:", plural!(len, "es"));
                     }
 
                     for patch in data.patches() {
@@ -412,13 +425,13 @@ fn work(args: &Args) -> Result<(), MainError> {
 
                         if args.patch.get(PatchFeatures::SRC) {
                             // TODO: wrap this more nicely
-                            print!("{}", indent);
+                            print!("{indent}");
 
                             let (id, line_no) = patch.source();
                             if let Err(err) =
                                 object.walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
                                     if let Some((id, line)) = node.parent() {
-                                        print!("({}) -> ", line);
+                                        print!("({line}) -> ");
                                         // REPT nodes are prefixed by their parent's name
                                         if matches!(node.type_data(), NodeType::Rept(..)) {
                                             print!(
@@ -442,10 +455,10 @@ fn work(args: &Args) -> Result<(), MainError> {
                                     Ok(())
                                 })
                             {
-                                error!("Invalid patch file stack: {}", err);
+                                error!("Invalid patch file stack: {err}");
                             }
 
-                            print!("({})", line_no);
+                            print!("({line_no})");
                             line_empty = false;
                         }
 
@@ -476,7 +489,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                         if args.patch.get(PatchFeatures::PCSECTION)
                             || args.patch.get(PatchFeatures::PCOFFSET)
                         {
-                            print!("{}{}PC", indent, patch_indent);
+                            print!("{indent}{patch_indent}PC");
                             if args.patch.get(PatchFeatures::PCSECTION) {
                                 let pc_section_id = patch.pc_section_id();
 
@@ -487,8 +500,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                                     print!(" in \"{}\"", String::from_utf8_lossy(section.name()));
                                 } else {
                                     error!(
-                                        "Patch has PC section #{} out of {}",
-                                        pc_section_id,
+                                        "Patch has PC section #{pc_section_id} out of {}",
                                         object.sections().len()
                                     );
                                     print!(" in <error>");
@@ -505,25 +517,24 @@ fn work(args: &Args) -> Result<(), MainError> {
                             error!("Empty patch RPN expression");
                         } else {
                             if args.patch.get(PatchFeatures::RPN) {
-                                println!("{}{}{} expression:", indent, patch_indent, args.rpn);
+                                println!("{indent}{patch_indent}{} expression:", args.rpn);
                                 if matches!(args.rpn, RpnPrintType::Infix) {
-                                    println!("{}{}    {:#}", indent, patch_indent, expr);
+                                    println!("{indent}{patch_indent}    {expr:#}");
                                 } else {
-                                    println!("{}{}    {}", indent, patch_indent, expr);
+                                    println!("{indent}{patch_indent}    {expr}");
                                 }
                             }
 
                             if args.patch.get(PatchFeatures::DATA) {
+                                let len = patch.expr().bytes().len();
                                 println!(
-                                    "{}{}RPN data ({} bytes):",
-                                    indent,
-                                    patch_indent,
-                                    patch.expr().bytes().len()
+                                    "{indent}{patch_indent}RPN data ({len} byte{}):",
+                                    plural!(len, "s")
                                 );
-                                print!("{}{}    [{:02x}", indent, patch_indent, expr.bytes()[0]);
+                                print!("{indent}{patch_indent}    [{:02x}", expr.bytes()[0]);
                                 // TODO: wrap this more nicely
                                 for byte in &expr.bytes()[1..] {
-                                    print!(" {:02x}", byte);
+                                    print!(" {byte:02x}");
                                 }
                                 println!("]");
                             }
@@ -548,7 +559,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                 let (id, line_no) = assertion.source();
                 if let Err(err) = object.walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
                     if let Some((id, line)) = node.parent() {
-                        print!("({}) -> ", line);
+                        print!("({line}) -> ");
                         // REPT nodes are prefixed by their parent's name
                         if matches!(node.type_data(), NodeType::Rept(..)) {
                             print!(
@@ -569,10 +580,10 @@ fn work(args: &Args) -> Result<(), MainError> {
                     print!("{}", node.type_data());
                     Ok(())
                 }) {
-                    error!("Invalid assertion file stack: {}", err);
+                    error!("Invalid assertion file stack: {err}");
                 }
 
-                print!("({})", line_no);
+                print!("({line_no})");
                 line_empty = false;
             }
 
@@ -603,7 +614,7 @@ fn work(args: &Args) -> Result<(), MainError> {
             if args.assertion.get(AssertionFeatures::SECTION)
                 || args.assertion.get(AssertionFeatures::PCOFFSET)
             {
-                print!("{}PC", indent);
+                print!("{indent}PC");
                 if args.assertion.get(AssertionFeatures::SECTION) {
                     let pc_section_id = assertion.pc_section_id();
 
@@ -614,8 +625,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                         print!(" in \"{}\"", String::from_utf8_lossy(section.name()));
                     } else {
                         error!(
-                            "Assertion has PC section #{} out of {}",
-                            pc_section_id,
+                            "Assertion has PC section #{pc_section_id} out of {}",
                             object.sections().len()
                         );
                         print!(" in <error>");
@@ -632,24 +642,21 @@ fn work(args: &Args) -> Result<(), MainError> {
                 error!("Empty assertion RPN expression");
             } else {
                 if args.assertion.get(AssertionFeatures::RPN) {
-                    println!("{}{} expression:", indent, args.rpn);
+                    println!("{indent}{} expression:", args.rpn);
                     if matches!(args.rpn, RpnPrintType::Infix) {
-                        println!("{}    {:#}", indent, expr);
+                        println!("{indent}    {expr:#}");
                     } else {
-                        println!("{}    {}", indent, expr);
+                        println!("{indent}    {expr}");
                     }
                 }
 
                 if args.assertion.get(AssertionFeatures::DATA) {
-                    println!(
-                        "{}RPN data ({} bytes):",
-                        indent,
-                        assertion.expr().bytes().len()
-                    );
-                    print!("{}    [{:02x}", indent, expr.bytes()[0]);
+                    let len = assertion.expr().bytes().len();
+                    println!("{indent}RPN data ({len} byte{}):", plural!(len, "s"));
+                    print!("{indent}    [{:02x}", expr.bytes()[0]);
                     // TODO: wrap this more nicely
                     for byte in &expr.bytes()[1..] {
-                        print!(" {:02x}", byte);
+                        print!(" {byte:02x}");
                     }
                     println!("]");
                 }
@@ -658,9 +665,9 @@ fn work(args: &Args) -> Result<(), MainError> {
             if args.assertion.get(AssertionFeatures::MESSAGE) {
                 let msg = assertion.message();
                 if msg.is_empty() {
-                    println!("{}No message", indent);
+                    println!("{indent}No message");
                 } else {
-                    println!("{}Message: \"{}\"", indent, String::from_utf8_lossy(msg));
+                    println!("{indent}Message: \"{}\"", String::from_utf8_lossy(msg));
                 }
             }
         }
