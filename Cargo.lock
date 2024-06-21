@@ -102,13 +102,13 @@ checksum = "0c520e05135d6e763148b6426a837e239041653ba7becd2e538c076c738025fc"
 
 [[package]]
 name = "rgbds-obj"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1fade1279cf1cd941400f02c4dcb7e7dc410d42f5c9d8ceb408d4372c37b232"
+checksum = "e3bdd792cbccacef8ffd22ce6334cfa3e924673e40362338a102e2df3e94fcf0"
 
 [[package]]
 name = "rgbobj"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "atty",
  "clap",
