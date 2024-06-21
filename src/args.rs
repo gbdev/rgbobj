@@ -26,7 +26,7 @@ pub mod features {
         /// Create a new, empty, set of features.
         fn new() -> Self;
 
-        /// Enable or disable all features at once; used by the pseudo-keyword `all`.
+        /// Enable or disable all features at once; used by the pseudo-keywords `all` and `none`.
         ///
         /// Exception: features prefixed with a `-` are *not* enabled by this.
         fn set_all(&mut self, enable: bool);
@@ -87,6 +87,8 @@ pub mod features {
 
                 if keyword == "all" {
                     features.set_all(enable);
+                } else if keyword == "none" {
+                    features.set_all(!enable);
                 } else {
                     // See which keyword this matches; if none, report the error
                     let which = F::KEYWORDS
@@ -95,7 +97,7 @@ pub mod features {
                         .find(|(_, &candidate)| keyword == candidate)
                         .ok_or_else(|| {
                             let mut msg =
-                                format!("Unknown keyword \"{}\", expected one of: all", keyword);
+                                format!("Unknown keyword \"{}\", expected one of: all, none", keyword);
                             for keyword in F::KEYWORDS {
                                 msg.push_str(", ");
                                 msg.push_str(keyword);
@@ -283,7 +285,7 @@ impl ValueEnum for RpnPrintType {
 fn get_cmd() -> Command<'static> {
     command!()
         .about("Prints out RGBDS object files in a human-friendly manner")
-        .after_help("A keyword list is a comma-separated list of keywords, with whitespace ignored around keywords.\nA keyword can be prefixed with a dash '-', negating its effect; note that whitespace is not permitted between the dash and the keyword, and that the first keyword may not be negated.\nKeyword lists can be omitted, in which case they default to the \"min\" value.\n\nSee `man 1 rgbobj` for more information, including what each keyword does.")
+        .after_help("A keyword list is a comma-separated list of keywords.\nA keyword can be prefixed with a dash '-', negating its effect.\nThe special keywords 'all' and 'none' enable or disable all keywords unless specified otherwise.\n\nSee `man 1 rgbobj` for more information, including what each keyword does.")
         .arg(arg!(-A --all "Display \"all\" output for all output types; this overrides other display options"))
         .arg(arg!(--color <enable> "Whether to color output").value_parser(value_parser!(Colorization)).default_value("auto").required(false))
         .arg(arg!(-r --rpn <format> "The format to use for printing RPN").value_parser(value_parser!(RpnPrintType)).default_value("RPN").required(false))
