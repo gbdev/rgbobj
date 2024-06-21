@@ -152,16 +152,20 @@ fn work(args: &Args) -> Result<(), MainError> {
         print_header!("Symbols");
 
         for symbol in object.symbols() {
+            let mut printed_lines = 0;
+
             if args.symbol.get(SymbolFeatures::NAME) {
                 print!("{}", String::from_utf8_lossy(symbol.name()));
                 if args.symbol.get(SymbolFeatures::TYPE) {
                     print!(" "); // Pad between the two
                 } else {
                     println!();
+                    printed_lines += 1;
                 }
             }
             if args.symbol.get(SymbolFeatures::TYPE) {
                 println!("[{}]", symbol.visibility().name());
+                printed_lines += 1;
             }
 
             let indent =
@@ -204,6 +208,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                     }
 
                     println!("({line_no})");
+                    printed_lines += 1;
                 }
 
                 if args.symbol.get(SymbolFeatures::SECTION) {
@@ -222,14 +227,18 @@ fn work(args: &Args) -> Result<(), MainError> {
                         print!(" "); // Pad between the two
                     } else {
                         println!();
+                        printed_lines += 1;
                     }
                 }
                 if args.symbol.get(SymbolFeatures::VALUE) {
                     println!("[@ ${:04x}]", data.value());
+                    printed_lines += 1;
                 }
             }
 
-            println!();
+            if printed_lines > 1 {
+                println!();
+            }
         }
     }
 
@@ -239,58 +248,60 @@ fn work(args: &Args) -> Result<(), MainError> {
         print_header!("Sections");
 
         for section in object.sections().iter() {
-            let mut line_empty = true; // Has anything been printed on this line?
+            let mut printed_lines = 0;
+            let mut first_line_empty = true;
 
             if args.section.get(SectionFeatures::NAME) {
                 print!("SECTION");
                 if args.section.get(SectionFeatures::TYPE) {
-                    if let Some(name) = section.modifier().name() {
-                        print!(" {name}");
+                    if let Some(modifier) = section.modifier().name() {
+                        print!(" {modifier}");
                     }
                 }
                 print!(" \"{}\"", String::from_utf8_lossy(section.name()));
 
-                line_empty = false;
+                first_line_empty = false;
             }
 
             if args.section.get(SectionFeatures::TYPE) {
-                if !line_empty {
+                if !first_line_empty {
                     print!(", ");
                 }
-
-                // If the name has been printed, then the modifier also has been
+                // If the name has been printed, then the modifier already has been
                 if !args.section.get(SectionFeatures::NAME) {
-                    if let Some(name) = section.modifier().name() {
-                        print!("{name} ");
+                    if let Some(modifier) = section.modifier().name() {
+                        print!("{modifier} ");
                     }
                 }
                 print!("{}", section.type_data().name());
 
-                if !args.section.get(SectionFeatures::ORG) {
-                    println!();
-                }
+                first_line_empty = false;
             }
 
             if args.section.get(SectionFeatures::ORG) {
                 if let Some(org) = section.org() {
+                    if !first_line_empty && !args.section.get(SectionFeatures::TYPE) {
+                        print!(" ");
+                    }
                     print!("[${org:04x}]");
-                } else if line_empty {
+                } else if first_line_empty {
                     print!("Floating");
                 }
 
-                line_empty = false;
+                first_line_empty = false;
             }
 
             if args.section.get(SectionFeatures::BANK) && section.type_data().is_banked() {
                 if let Some(bank) = section.bank() {
-                    if !line_empty {
+                    if !first_line_empty {
                         print!(", ");
                     }
                     print!("BANK[${bank:04x}]");
-                } else if line_empty {
-                    print!("Floating bank");
+                } else if first_line_empty {
+                    print!("Floating");
                 }
-                line_empty = false;
+
+                first_line_empty = false;
             }
 
             if args.section.get(SectionFeatures::ALIGN) {
@@ -307,7 +318,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                     );
                 }
                 if align != 0 {
-                    if !line_empty {
+                    if !first_line_empty {
                         print!(", ");
                     }
                     if ofs == 0 {
@@ -315,21 +326,26 @@ fn work(args: &Args) -> Result<(), MainError> {
                     } else {
                         print!("ALIGN[{align}, {ofs}]");
                     }
-                }
 
-                line_empty = false;
+                    first_line_empty = false;
+                }
             }
 
-            let indent = if !line_empty {
+            if !first_line_empty {
                 println!();
-                "    "
-            } else {
+                printed_lines += 1;
+            }
+
+            let indent = if first_line_empty {
                 ""
+            } else {
+                "    "
             };
 
             if args.section.get(SectionFeatures::SIZE) {
                 let len = section.size();
                 println!("{indent}${len:04x} ({len}) byte{}", plural!(len, "s"));
+                printed_lines += 1;
             }
 
             if let Some(data) = section.type_data().data() {
@@ -404,12 +420,14 @@ fn work(args: &Args) -> Result<(), MainError> {
                         if i % 16 == 0 {
                             stdout.reset().unwrap(); // Make sure not to print the "metadata" in patched form
                             println!();
+                            printed_lines += 1;
                         }
                     }
                     // Make sure to end on a newline, and clear any patch leftovers
                     if i % 16 != 0 {
                         stdout.reset().unwrap();
                         println!();
+                        printed_lines += 1;
                     }
                 }
 
@@ -421,10 +439,11 @@ fn work(args: &Args) -> Result<(), MainError> {
                             plural!(len, "es"),
                             if len > 0 { ":" } else { "" }
                         );
+                        printed_lines += 1;
                     }
 
                     for patch in data.patches() {
-                        let mut line_empty = true;
+                        let mut patch_line_empty = true;
 
                         if args.patch.get(PatchFeatures::SRC) {
                             // TODO: wrap this more nicely
@@ -462,31 +481,35 @@ fn work(args: &Args) -> Result<(), MainError> {
                             }
 
                             print!("({line_no})");
-                            line_empty = false;
+                            patch_line_empty = false;
                         }
 
                         if args.patch.get(PatchFeatures::OFFSET) {
                             print!(
                                 "{}@ ${:04x}",
-                                if line_empty { indent } else { " " },
+                                if patch_line_empty { indent } else { " " },
                                 patch.offset()
                             );
-                            line_empty = false;
+                            patch_line_empty = false;
                         }
 
                         if args.patch.get(PatchFeatures::TYPE) {
                             print!(
                                 "{}({})",
-                                if line_empty { indent } else { " " },
+                                if patch_line_empty { indent } else { " " },
                                 patch.patch_type().name()
                             );
                         }
 
-                        let patch_indent = if !line_empty {
+                        if !patch_line_empty {
                             println!();
-                            "    "
-                        } else {
+                            printed_lines += 1;
+                        }
+
+                        let patch_indent = if patch_line_empty {
                             ""
+                        } else {
+                            "    "
                         };
 
                         if args.patch.get(PatchFeatures::PCSECTION)
@@ -513,6 +536,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                                 print!(" @ ${:04x}", patch.pc_offset());
                             }
                             println!();
+                            printed_lines += 1;
                         }
 
                         let expr = patch.expr();
@@ -526,6 +550,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                                 } else {
                                     println!("{indent}{patch_indent}    {expr}");
                                 }
+                                printed_lines += 2;
                             }
 
                             if args.patch.get(PatchFeatures::DATA) {
@@ -540,13 +565,16 @@ fn work(args: &Args) -> Result<(), MainError> {
                                     print!(" {byte:02x}");
                                 }
                                 println!("]");
+                                printed_lines += 2;
                             }
                         }
                     }
                 }
             }
 
-            println!();
+            if printed_lines > 1 {
+                println!();
+            }
         }
     }
 
@@ -556,7 +584,8 @@ fn work(args: &Args) -> Result<(), MainError> {
         print_header!("Assertions");
 
         for assertion in object.assertions() {
-            let mut line_empty = true;
+            let mut printed_lines = 0;
+            let mut first_line_empty = true;
 
             if args.assertion.get(AssertionFeatures::SRC) {
                 // TODO: wrap this more nicely
@@ -588,31 +617,35 @@ fn work(args: &Args) -> Result<(), MainError> {
                 }
 
                 print!("({line_no})");
-                line_empty = false;
+                first_line_empty = false;
             }
 
             if args.assertion.get(AssertionFeatures::OFFSET) {
                 print!(
                     "{}@ ${:04x}",
-                    if line_empty { "" } else { " " },
+                    if first_line_empty { "" } else { " " },
                     assertion.offset()
                 );
-                line_empty = false;
+                first_line_empty = false;
             }
 
             if args.assertion.get(AssertionFeatures::TYPE) {
                 print!(
                     "{}({})",
-                    if line_empty { "" } else { " " },
+                    if first_line_empty { "" } else { " " },
                     assertion.err_type().name()
                 );
             }
 
-            let indent = if !line_empty {
+            if !first_line_empty {
                 println!();
-                "    "
-            } else {
+                printed_lines += 1;
+            }
+
+            let indent = if first_line_empty {
                 ""
+            } else {
+                "    "
             };
 
             if args.assertion.get(AssertionFeatures::SECTION)
@@ -639,6 +672,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                     print!(" @ ${:04x}", assertion.pc_offset());
                 }
                 println!();
+                printed_lines += 1;
             }
 
             let expr = assertion.expr();
@@ -652,6 +686,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                     } else {
                         println!("{indent}    {expr}");
                     }
+                    printed_lines += 2;
                 }
 
                 if args.assertion.get(AssertionFeatures::DATA) {
@@ -663,6 +698,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                         print!(" {byte:02x}");
                     }
                     println!("]");
+                    printed_lines += 2;
                 }
             }
 
@@ -673,9 +709,12 @@ fn work(args: &Args) -> Result<(), MainError> {
                 } else {
                     println!("{indent}Message: \"{}\"", String::from_utf8_lossy(msg));
                 }
+                printed_lines += 1;
             }
 
-            println!();
+            if printed_lines > 1 {
+                println!();
+            }
         }
     }
 
