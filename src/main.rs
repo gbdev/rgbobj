@@ -17,7 +17,6 @@ fn main() {
 
     if let Err(err) = work(&args) {
         let mut stderr = StandardStream::stderr(args.color_err);
-
         stderr
             .set_color(
                 ColorSpec::new()
@@ -152,8 +151,6 @@ fn work(args: &Args) -> Result<(), MainError> {
         for symbol in object.symbols() {
             println!();
 
-            let mut indent = "";
-
             if args.symbol.get(SymbolFeatures::NAME) {
                 print!("{}", String::from_utf8_lossy(symbol.name()));
                 if args.symbol.get(SymbolFeatures::TYPE) {
@@ -162,13 +159,16 @@ fn work(args: &Args) -> Result<(), MainError> {
                 } else {
                     println!();
                 }
-                indent = "    ";
             }
-
             if args.symbol.get(SymbolFeatures::TYPE) {
                 println!("[{}]", symbol.visibility().name());
-                indent = "    ";
             }
+
+            let indent = if args.symbol.get(SymbolFeatures::NAME) {
+                "    "
+            } else {
+                ""
+            };
 
             if let Some(data) = symbol.visibility().data() {
                 if args.symbol.get(SymbolFeatures::SRC) {
