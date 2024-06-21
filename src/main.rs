@@ -114,8 +114,7 @@ fn work(args: &Args) -> Result<(), MainError> {
             println!();
             setup!(bold);
             println!($str);
-            // Print as many dashes as there are characters; this requires the literal to be at least as long
-            println!("{}", &"--------------"[..$str.len()]);
+            println!("{}", "-".repeat($str.len()));
             reset!();
         };
     }
