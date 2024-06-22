@@ -153,24 +153,38 @@ fn work(args: &Args) -> Result<(), MainError> {
 
         let mut separate_lines = false;
 
+        let mut symbol_id = 0;
         for symbol in object.symbols() {
             if separate_lines {
                 println!();
             }
 
             let mut printed_lines = 0;
+            let mut first_line_empty = true;
 
             if args.symbol.get(SymbolFeatures::NAME) {
                 print!("{}", String::from_utf8_lossy(symbol.name()));
-                if args.symbol.get(SymbolFeatures::TYPE) {
-                    print!(" "); // Pad between the symbol name and type
-                } else {
-                    println!();
-                    printed_lines += 1;
-                }
+                first_line_empty = false;
             }
+
+            if args.symbol.get(SymbolFeatures::ID) {
+                if !first_line_empty {
+                    print!(" ");
+                }
+                print!("(#{})", symbol_id);
+                first_line_empty = false;
+            }
+
             if args.symbol.get(SymbolFeatures::TYPE) {
-                println!("[{}]", symbol.visibility().name());
+                if !first_line_empty {
+                    print!(" ");
+                }
+                print!("[{}]", symbol.visibility().name());
+                first_line_empty = false;
+            }
+
+            if !first_line_empty {
+                println!();
                 printed_lines += 1;
             }
 
@@ -240,6 +254,8 @@ fn work(args: &Args) -> Result<(), MainError> {
             if printed_lines > 1 {
                 separate_lines = true;
             }
+
+            symbol_id += 1;
         }
     }
 
@@ -266,7 +282,6 @@ fn work(args: &Args) -> Result<(), MainError> {
                     }
                 }
                 print!(" \"{}\"", String::from_utf8_lossy(section.name()));
-
                 first_line_empty = false;
             }
 
@@ -281,7 +296,6 @@ fn work(args: &Args) -> Result<(), MainError> {
                     }
                 }
                 print!("{}", section.type_data().name());
-
                 first_line_empty = false;
             }
 
@@ -294,7 +308,6 @@ fn work(args: &Args) -> Result<(), MainError> {
                 } else if first_line_empty {
                     print!("Floating");
                 }
-
                 first_line_empty = false;
             }
 
@@ -307,7 +320,6 @@ fn work(args: &Args) -> Result<(), MainError> {
                 } else if first_line_empty {
                     print!("Floating");
                 }
-
                 first_line_empty = false;
             }
 
@@ -333,7 +345,6 @@ fn work(args: &Args) -> Result<(), MainError> {
                     } else {
                         print!("ALIGN[{align}, {ofs}]");
                     }
-
                     first_line_empty = false;
                 }
             }
