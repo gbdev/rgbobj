@@ -135,15 +135,12 @@ fn work(args: &Args) -> Result<(), MainError> {
         let len = file.get_ref().metadata().unwrap().len();
         print!(" [{len} byte{}]", plural!(len, "s"));
     }
-    println!(":  RGBDS object v9 revision {}", object.revision());
+    println!(": RGBDS object v9 revision {}", object.revision());
 
     if args.header.get(HeaderFeatures::COUNTS) {
-        println!(
-            "Symbols: {}    Sections: {}    Assertions: {}",
-            object.symbols().len(),
-            object.sections().len(),
-            object.assertions().len()
-        );
+        println!("    Symbols: {}", object.symbols().len());
+        println!("    Sections: {}", object.sections().len());
+        println!("    Assertions: {}", object.assertions().len());
     }
 
     // Print symbols
