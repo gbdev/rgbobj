@@ -158,14 +158,27 @@ fn work(args: &Args) -> Result<(), MainError> {
         }};
     }
 
+    macro_rules! print_rpn_expr {
+        ($indent:expr, $expr:expr) => {
+            println!("{}{} expression:", $indent, args.rpn);
+            print!("{}    ", $indent);
+            // TODO: wrap the RPN expression nicely
+            if matches!(args.rpn, RpnPrintType::Infix) {
+                println!("{:#}", $expr);
+            } else {
+                println!("{}", $expr);
+            }
+        };
+    }
+
     macro_rules! print_rpn_data {
-        ($indent:expr, $rpn:expr) => {
-            let len = ($rpn).bytes().len();
+        ($indent:expr, $data:expr) => {
+            let len = ($data).bytes().len();
             println!("{}RPN data ({len} byte{}):", $indent, plural!(len, "s"));
 
-            print!("{}    [{:02x}", $indent, ($rpn).bytes()[0]);
+            print!("{}    [{:02x}", $indent, ($data).bytes()[0]);
             let mut i = 1;
-            for byte in &($rpn).bytes()[1..] {
+            for byte in &($data).bytes()[1..] {
                 if i % 16 == 0 {
                     println!();
                     print!("{}     ", $indent);
@@ -570,15 +583,9 @@ fn work(args: &Args) -> Result<(), MainError> {
                             error!("Empty patch RPN expression");
                         } else {
                             if args.patch.get(PatchFeatures::RPN) {
-                                println!("{indent}{patch_indent}{} expression:", args.rpn);
-                                if matches!(args.rpn, RpnPrintType::Infix) {
-                                    println!("{indent}{patch_indent}    {expr:#}");
-                                } else {
-                                    println!("{indent}{patch_indent}    {expr}");
-                                }
+                                print_rpn_expr!(format!("{indent}{patch_indent}"), expr);
                                 printed_lines += 2;
                             }
-
                             if args.patch.get(PatchFeatures::DATA) {
                                 print_rpn_data!(format!("{indent}{patch_indent}"), expr);
                                 printed_lines += 2;
@@ -672,15 +679,9 @@ fn work(args: &Args) -> Result<(), MainError> {
                 error!("Empty assertion RPN expression");
             } else {
                 if args.assertion.get(AssertionFeatures::RPN) {
-                    println!("{indent}{} expression:", args.rpn);
-                    if matches!(args.rpn, RpnPrintType::Infix) {
-                        println!("{indent}    {expr:#}");
-                    } else {
-                        println!("{indent}    {expr}");
-                    }
+                    print_rpn_expr!(format!("{indent}"), expr);
                     printed_lines += 2;
                 }
-
                 if args.assertion.get(AssertionFeatures::DATA) {
                     print_rpn_data!(format!("{indent}"), expr);
                     printed_lines += 2;
