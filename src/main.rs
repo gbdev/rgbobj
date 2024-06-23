@@ -723,9 +723,7 @@ impl Display for MainError {
     }
 }
 
-impl Error for MainError {
-    // add code here
-}
+impl Error for MainError {}
 
 impl From<io::Error> for MainError {
     fn from(err: io::Error) -> Self {
