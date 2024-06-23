@@ -123,6 +123,52 @@ fn work(args: &Args) -> Result<(), MainError> {
         };
     }
 
+    macro_rules! print_source_nodes {
+        ($source:expr) => {{
+            let (id, line_no) = ($source).source();
+            // TODO: wrap the node stack nicely
+            object
+                .walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
+                    if let Some((id, line)) = node.parent() {
+                        print!("({line}) -> ");
+                        // REPT nodes are prefixed by their parent's name
+                        if matches!(node.type_data(), NodeType::Rept(..)) {
+                            print!(
+                                "{}",
+                                object
+                                    .node(id)
+                                    .ok_or_else(|| NodeWalkError::bad_id(id, &object))?
+                                    .type_data()
+                            );
+                        }
+                    } else {
+                        // The root node should not be a REPT one
+                        if matches!(node.type_data(), NodeType::Rept(..)) {
+                            print!("<error>");
+                            error!("REPT-type root file stack node");
+                        }
+                    }
+                    print!("{}", node.type_data());
+                    Ok(())
+                })
+                .and_then(|()| -> Result<_, NodeWalkError<Infallible>> {
+                    print!("({line_no})");
+                    Ok(())
+                })
+        }};
+    }
+
+    macro_rules! print_bytes {
+        ($bytes:expr) => {
+            print!("[{:02x}", ($bytes).bytes()[0]);
+            // TODO: wrap the RPN bytes nicely
+            for byte in &($bytes).bytes()[1..] {
+                print!(" {byte:02x}");
+            }
+            print!("]");
+        };
+    }
+
     // Print header
 
     setup!(bold);
@@ -189,37 +235,11 @@ fn work(args: &Args) -> Result<(), MainError> {
 
             if let Some(data) = symbol.visibility().data() {
                 if args.symbol.get(SymbolFeatures::SRC) {
-                    // TOOD: wrap this more nicely
                     print!("{indent}");
-
-                    let (id, line_no) = data.source();
-                    if let Err(err) = object.walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
-                        if let Some((id, line)) = node.parent() {
-                            print!("({line}) -> ");
-                            // REPT nodes are prefixed by their parent's name
-                            if matches!(node.type_data(), NodeType::Rept(..)) {
-                                print!(
-                                    "{}",
-                                    object
-                                        .node(id)
-                                        .ok_or_else(|| NodeWalkError::bad_id(id, &object))?
-                                        .type_data()
-                                );
-                            }
-                        } else {
-                            // The root node should not be a REPT one
-                            if matches!(node.type_data(), NodeType::Rept(..)) {
-                                print!("<error>");
-                                error!("REPT-type root file stack node");
-                            }
-                        }
-                        print!("{}", node.type_data());
-                        Ok(())
-                    }) {
+                    if let Err(err) = print_source_nodes!(data) {
                         error!("Invalid symbol file stack: {}", err);
                     }
-
-                    println!("({line_no})");
+                    println!();
                     printed_lines += 1;
                 }
 
@@ -477,41 +497,10 @@ fn work(args: &Args) -> Result<(), MainError> {
                         let mut patch_line_empty = true;
 
                         if args.patch.get(PatchFeatures::SRC) {
-                            // TODO: wrap this more nicely
                             print!("{indent}");
-
-                            let (id, line_no) = patch.source();
-                            if let Err(err) =
-                                object.walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
-                                    if let Some((id, line)) = node.parent() {
-                                        print!("({line}) -> ");
-                                        // REPT nodes are prefixed by their parent's name
-                                        if matches!(node.type_data(), NodeType::Rept(..)) {
-                                            print!(
-                                                "{}",
-                                                object
-                                                    .node(id)
-                                                    .ok_or_else(|| NodeWalkError::bad_id(
-                                                        id, &object
-                                                    ))?
-                                                    .type_data()
-                                            );
-                                        }
-                                    } else {
-                                        // The root node should not be a REPT one
-                                        if matches!(node.type_data(), NodeType::Rept(..)) {
-                                            print!("<error>");
-                                            error!("REPT-type root file stack node");
-                                        }
-                                    }
-                                    print!("{}", node.type_data());
-                                    Ok(())
-                                })
-                            {
+                            if let Err(err) = print_source_nodes!(patch) {
                                 error!("Invalid patch file stack: {err}");
                             }
-
-                            print!("({line_no})");
                             patch_line_empty = false;
                         }
 
@@ -586,12 +575,9 @@ fn work(args: &Args) -> Result<(), MainError> {
                                     "{indent}{patch_indent}RPN data ({len} byte{}):",
                                     plural!(len, "s")
                                 );
-                                print!("{indent}{patch_indent}    [{:02x}", expr.bytes()[0]);
-                                // TODO: wrap this more nicely
-                                for byte in &expr.bytes()[1..] {
-                                    print!(" {byte:02x}");
-                                }
-                                println!("]");
+                                print!("{indent}{patch_indent}    ");
+                                print_bytes!(expr);
+                                println!();
                                 printed_lines += 2;
                             }
                         }
@@ -621,35 +607,9 @@ fn work(args: &Args) -> Result<(), MainError> {
             let mut first_line_empty = true;
 
             if args.assertion.get(AssertionFeatures::SRC) {
-                // TODO: wrap this more nicely
-                let (id, line_no) = assertion.source();
-                if let Err(err) = object.walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
-                    if let Some((id, line)) = node.parent() {
-                        print!("({line}) -> ");
-                        // REPT nodes are prefixed by their parent's name
-                        if matches!(node.type_data(), NodeType::Rept(..)) {
-                            print!(
-                                "{}",
-                                object
-                                    .node(id)
-                                    .ok_or_else(|| NodeWalkError::bad_id(id, &object))?
-                                    .type_data()
-                            );
-                        }
-                    } else {
-                        // The root node should not be a REPT one
-                        if matches!(node.type_data(), NodeType::Rept(..)) {
-                            print!("<error>");
-                            error!("REPT-type root file stack node");
-                        }
-                    }
-                    print!("{}", node.type_data());
-                    Ok(())
-                }) {
+                if let Err(err) = print_source_nodes!(assertion) {
                     error!("Invalid assertion file stack: {err}");
                 }
-
-                print!("({line_no})");
                 first_line_empty = false;
             }
 
@@ -721,12 +681,9 @@ fn work(args: &Args) -> Result<(), MainError> {
                 if args.assertion.get(AssertionFeatures::DATA) {
                     let len = assertion.expr().bytes().len();
                     println!("{indent}RPN data ({len} byte{}):", plural!(len, "s"));
-                    print!("{indent}    [{:02x}", expr.bytes()[0]);
-                    // TODO: wrap this more nicely
-                    for byte in &expr.bytes()[1..] {
-                        print!(" {byte:02x}");
-                    }
-                    println!("]");
+                    print!("{indent}    ");
+                    print_bytes!(expr);
+                    println!();
                     printed_lines += 2;
                 }
             }
