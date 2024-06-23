@@ -158,14 +158,24 @@ fn work(args: &Args) -> Result<(), MainError> {
         }};
     }
 
-    macro_rules! print_bytes {
-        ($bytes:expr) => {
-            print!("[{:02x}", ($bytes).bytes()[0]);
-            // TODO: wrap the RPN bytes nicely
-            for byte in &($bytes).bytes()[1..] {
-                print!(" {byte:02x}");
+    macro_rules! print_rpn_data {
+        ($indent:expr, $rpn:expr) => {
+            let len = ($rpn).bytes().len();
+            println!("{}RPN data ({len} byte{}):", $indent, plural!(len, "s"));
+
+            print!("{}    [{:02x}", $indent, ($rpn).bytes()[0]);
+            let mut i = 1;
+            for byte in &($rpn).bytes()[1..] {
+                if i % 16 == 0 {
+                    println!();
+                    print!("{}     ", $indent);
+                } else {
+                    print!(" ");
+                }
+                print!("{byte:02x}");
+                i += 1;
             }
-            print!("]");
+            println!("]");
         };
     }
 
@@ -570,14 +580,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                             }
 
                             if args.patch.get(PatchFeatures::DATA) {
-                                let len = patch.expr().bytes().len();
-                                println!(
-                                    "{indent}{patch_indent}RPN data ({len} byte{}):",
-                                    plural!(len, "s")
-                                );
-                                print!("{indent}{patch_indent}    ");
-                                print_bytes!(expr);
-                                println!();
+                                print_rpn_data!(format!("{indent}{patch_indent}"), expr);
                                 printed_lines += 2;
                             }
                         }
@@ -679,11 +682,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                 }
 
                 if args.assertion.get(AssertionFeatures::DATA) {
-                    let len = assertion.expr().bytes().len();
-                    println!("{indent}RPN data ({len} byte{}):", plural!(len, "s"));
-                    print!("{indent}    ");
-                    print_bytes!(expr);
-                    println!();
+                    print_rpn_data!(format!("{indent}"), expr);
                     printed_lines += 2;
                 }
             }
