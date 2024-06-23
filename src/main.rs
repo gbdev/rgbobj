@@ -219,8 +219,7 @@ fn work(args: &Args) -> Result<(), MainError> {
 
         let mut separate_lines = false;
 
-        let mut symbol_id = 0;
-        for symbol in object.symbols() {
+        for (symbol_id, symbol) in object.symbols().iter().enumerate() {
             if separate_lines {
                 println!();
             }
@@ -294,8 +293,6 @@ fn work(args: &Args) -> Result<(), MainError> {
             if printed_lines > 1 {
                 separate_lines = true;
             }
-
-            symbol_id += 1;
         }
     }
 
