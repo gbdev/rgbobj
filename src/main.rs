@@ -542,6 +542,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                                 if patch_line_empty { indent } else { " " },
                                 patch.patch_type().name()
                             );
+                            patch_line_empty = false;
                         }
 
                         if !patch_line_empty {
