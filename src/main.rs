@@ -639,6 +639,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                     if first_line_empty { "" } else { " " },
                     assertion.err_type().name()
                 );
+                first_line_empty = false;
             }
 
             if !first_line_empty {
