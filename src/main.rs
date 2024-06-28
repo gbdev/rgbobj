@@ -13,11 +13,13 @@ use args::features::*;
 use args::{Args, RpnPrintType};
 
 fn main() {
+    // Don't panic when printing to a closed pipe, e.g. with `rgbobj | head`.
+    sigpipe::reset();
+
     let args = args::parse();
 
     if let Err(err) = work(&args) {
         let mut stderr = StandardStream::stderr(args.color_err);
-
         stderr
             .set_color(
                 ColorSpec::new()
@@ -109,15 +111,84 @@ fn work(args: &Args) -> Result<(), MainError> {
         };
     }
 
-    macro_rules! header {
+    macro_rules! print_header {
         ($str:literal) => {
             println!();
             println!();
             setup!(bold);
             println!($str);
-            // Print as many dashes as there are characters; this requires the literal to be at least as long
-            println!("{}", &"--------------"[..$str.len()]);
+            println!("{}", "-".repeat($str.len()));
             reset!();
+            println!();
+        };
+    }
+
+    macro_rules! print_source_nodes {
+        ($source:expr) => {{
+            let (id, line_no) = ($source).source();
+            // TODO: wrap the node stack nicely
+            object
+                .walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
+                    if let Some((id, line)) = node.parent() {
+                        print!("({line}) -> ");
+                        // REPT nodes are prefixed by their parent's name
+                        if matches!(node.type_data(), NodeType::Rept(..)) {
+                            print!(
+                                "{}",
+                                object
+                                    .node(id)
+                                    .ok_or_else(|| NodeWalkError::bad_id(id, &object))?
+                                    .type_data()
+                            );
+                        }
+                    } else {
+                        // The root node should not be a REPT one
+                        if matches!(node.type_data(), NodeType::Rept(..)) {
+                            print!("<error>");
+                            error!("REPT-type root file stack node");
+                        }
+                    }
+                    print!("{}", node.type_data());
+                    Ok(())
+                })
+                .and_then(|()| -> Result<_, NodeWalkError<Infallible>> {
+                    print!("({line_no})");
+                    Ok(())
+                })
+        }};
+    }
+
+    macro_rules! print_rpn_expr {
+        ($indent:expr, $expr:expr) => {
+            println!("{}{} expression:", $indent, args.rpn);
+            print!("{}    ", $indent);
+            // TODO: wrap the RPN expression nicely
+            if matches!(args.rpn, RpnPrintType::Infix) {
+                println!("{:#}", $expr);
+            } else {
+                println!("{}", $expr);
+            }
+        };
+    }
+
+    macro_rules! print_rpn_data {
+        ($indent:expr, $data:expr) => {
+            let len = ($data).bytes().len();
+            println!("{}RPN data ({len} byte{}):", $indent, plural!(len, "s"));
+
+            print!("{}    [{:02x}", $indent, ($data).bytes()[0]);
+            let mut i = 1;
+            for byte in &($data).bytes()[1..] {
+                if i % 16 == 0 {
+                    println!();
+                    print!("{}     ", $indent);
+                } else {
+                    print!(" ");
+                }
+                print!("{byte:02x}");
+                i += 1;
+            }
+            println!("]");
         };
     }
 
@@ -133,76 +204,65 @@ fn work(args: &Args) -> Result<(), MainError> {
         let len = file.get_ref().metadata().unwrap().len();
         print!(" [{len} byte{}]", plural!(len, "s"));
     }
-    println!(":  RGBDS object v9 revision {}", object.revision());
+    println!(": RGBDS object v9 revision {}", object.revision());
 
     if args.header.get(HeaderFeatures::COUNTS) {
-        println!(
-            "Symbols: {}    Sections: {}    Assertions: {}",
-            object.symbols().len(),
-            object.sections().len(),
-            object.assertions().len()
-        );
+        println!("    Symbols: {}", object.symbols().len());
+        println!("    Sections: {}", object.sections().len());
+        println!("    Assertions: {}", object.assertions().len());
     }
 
     // Print symbols
 
     if args.symbol.any() && !object.symbols().is_empty() {
-        header!("Symbols");
+        print_header!("Symbols");
 
-        for symbol in object.symbols() {
-            println!();
+        let mut separate_lines = false;
 
-            let mut indent = "";
+        for (symbol_id, symbol) in object.symbols().iter().enumerate() {
+            if separate_lines {
+                println!();
+            }
+
+            let mut printed_lines = 0;
+            let mut first_line_empty = true;
 
             if args.symbol.get(SymbolFeatures::NAME) {
                 print!("{}", String::from_utf8_lossy(symbol.name()));
-                if args.symbol.get(SymbolFeatures::TYPE) {
-                    // Pad between the two
+                first_line_empty = false;
+            }
+
+            if args.symbol.get(SymbolFeatures::ID) {
+                if !first_line_empty {
                     print!(" ");
-                } else {
-                    println!();
                 }
-                indent = "    ";
+                print!("(#{})", symbol_id);
+                first_line_empty = false;
             }
 
             if args.symbol.get(SymbolFeatures::TYPE) {
-                println!("[{}]", symbol.visibility().name());
-                indent = "    ";
+                if !first_line_empty {
+                    print!(" ");
+                }
+                print!("[{}]", symbol.visibility().name());
+                first_line_empty = false;
             }
+
+            if !first_line_empty {
+                println!();
+                printed_lines += 1;
+            }
+
+            let indent = if printed_lines == 0 { "" } else { "    " };
 
             if let Some(data) = symbol.visibility().data() {
                 if args.symbol.get(SymbolFeatures::SRC) {
-                    // TOOD: wrap this more nicely
                     print!("{indent}");
-
-                    let (id, line_no) = data.source();
-                    if let Err(err) = object.walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
-                        if let Some((id, line)) = node.parent() {
-                            print!("({line}) -> ");
-                            // REPT nodes are prefixed by their parent's name
-                            if matches!(node.type_data(), NodeType::Rept(..)) {
-                                print!(
-                                    "{}",
-                                    object
-                                        .node(id)
-                                        .ok_or_else(|| NodeWalkError::bad_id(id, &object))?
-                                        .type_data()
-                                );
-                            }
-                        } else {
-                            // The root node should not be a REPT one
-                            if matches!(node.type_data(), NodeType::Rept(..)) {
-                                print!("<error>");
-                                error!("REPT-type root file stack node");
-                            }
-                        }
-                        print!("{}", node.type_data());
-                        Ok(())
-                    }) {
+                    if let Err(err) = print_source_nodes!(data) {
                         error!("Invalid symbol file stack: {}", err);
                     }
-
-                    println!("({line_no})");
+                    println!();
+                    printed_lines += 1;
                 }
 
                 if args.symbol.get(SymbolFeatures::SECTION) {
@@ -217,17 +277,21 @@ fn work(args: &Args) -> Result<(), MainError> {
                     } else {
                         print!("Constant");
                     }
-
                     if args.symbol.get(SymbolFeatures::VALUE) {
-                        print!(" ");
+                        print!(" "); // Pad between the section name and value
                     } else {
                         println!();
+                        printed_lines += 1;
                     }
                 }
-
                 if args.symbol.get(SymbolFeatures::VALUE) {
                     println!("[@ ${:04x}]", data.value());
+                    printed_lines += 1;
                 }
+            }
+
+            if printed_lines > 1 {
+                separate_lines = true;
             }
         }
     }
@@ -235,63 +299,65 @@ fn work(args: &Args) -> Result<(), MainError> {
     // Print sections
 
     if args.section.any() && !object.sections().is_empty() {
-        header!("Sections");
+        print_header!("Sections");
+
+        let mut separate_lines = false;
 
         for section in object.sections().iter() {
-            println!();
+            if separate_lines {
+                println!();
+            }
 
-            let mut line_empty = true; // Has anything been printed on this line?
+            let mut printed_lines = 0;
+            let mut first_line_empty = true;
 
             if args.section.get(SectionFeatures::NAME) {
                 print!("SECTION");
                 if args.section.get(SectionFeatures::TYPE) {
-                    if let Some(name) = section.modifier().name() {
-                        print!(" {name}");
+                    if let Some(modifier) = section.modifier().name() {
+                        print!(" {modifier}");
                     }
                 }
                 print!(" \"{}\"", String::from_utf8_lossy(section.name()));
-
-                line_empty = false;
+                first_line_empty = false;
             }
 
             if args.section.get(SectionFeatures::TYPE) {
-                if !line_empty {
+                if !first_line_empty {
                     print!(", ");
                 }
-
-                // If the name has been printed, then the modifier also has been
+                // If the name has been printed, then the modifier already has been
                 if !args.section.get(SectionFeatures::NAME) {
-                    if let Some(name) = section.modifier().name() {
-                        print!("{name} ");
+                    if let Some(modifier) = section.modifier().name() {
+                        print!("{modifier} ");
                     }
                 }
                 print!("{}", section.type_data().name());
-
-                if !args.section.get(SectionFeatures::ORG) {
-                    println!();
-                }
+                first_line_empty = false;
             }
 
             if args.section.get(SectionFeatures::ORG) {
                 if let Some(org) = section.org() {
+                    if !first_line_empty && !args.section.get(SectionFeatures::TYPE) {
+                        print!(" ");
+                    }
                     print!("[${org:04x}]");
-                } else if line_empty {
+                } else if first_line_empty {
                     print!("Floating");
                 }
-
-                line_empty = false;
+                first_line_empty = false;
             }
 
             if args.section.get(SectionFeatures::BANK) && section.type_data().is_banked() {
                 if let Some(bank) = section.bank() {
-                    if !line_empty {
+                    if !first_line_empty {
                         print!(", ");
                     }
                     print!("BANK[${bank:04x}]");
-                } else if line_empty {
-                    print!("Floating bank");
+                } else if first_line_empty {
+                    print!("Floating");
                 }
-                line_empty = false;
+                first_line_empty = false;
             }
 
             if args.section.get(SectionFeatures::ALIGN) {
@@ -308,7 +374,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                     );
                 }
                 if align != 0 {
-                    if !line_empty {
+                    if !first_line_empty {
                         print!(", ");
                     }
                     if ofs == 0 {
@@ -316,21 +382,29 @@ fn work(args: &Args) -> Result<(), MainError> {
                     } else {
                         print!("ALIGN[{align}, {ofs}]");
                     }
+                    first_line_empty = false;
                 }
-
-                line_empty = false;
             }
 
-            let indent = if !line_empty {
+            if !first_line_empty {
                 println!();
-                "    "
-            } else {
-                ""
-            };
+                printed_lines += 1;
+            }
+
+            let indent = if first_line_empty { "" } else { "    " };
 
             if args.section.get(SectionFeatures::SIZE) {
                 let len = section.size();
-                println!("{indent}${len:04x} ({len}) byte{}", plural!(len, "s"));
+                println!(
+                    "{indent}${len:04x} ({len}) byte{}{}",
+                    plural!(len, "s"),
+                    if len > 0 && args.section.get(SectionFeatures::DATA) {
+                        ":"
+                    } else {
+                        ""
+                    }
+                );
+                printed_lines += 1;
             }
 
             if let Some(data) = section.type_data().data() {
@@ -405,86 +479,75 @@ fn work(args: &Args) -> Result<(), MainError> {
                         if i % 16 == 0 {
                             stdout.reset().unwrap(); // Make sure not to print the "metadata" in patched form
                             println!();
+                            printed_lines += 1;
                         }
                     }
                     // Make sure to end on a newline, and clear any patch leftovers
                     if i % 16 != 0 {
                         stdout.reset().unwrap();
                         println!();
+                        printed_lines += 1;
                     }
+                }
+
+                if args.section.get(SectionFeatures::DATA)
+                    && !data.data().is_empty()
+                    && args.patch.any()
+                {
+                    println!(); // Pad between the section data and patches
+                    printed_lines += 1;
                 }
 
                 if args.patch.any() {
                     if args.patch.get(PatchFeatures::COUNT) {
                         let len = data.patches().len();
-                        println!("{indent}{len} patch{}:", plural!(len, "es"));
+                        println!(
+                            "{indent}{len} patch{}{}",
+                            plural!(len, "es"),
+                            if len > 0 && args.patch.any_besides(PatchFeatures::COUNT) {
+                                ":"
+                            } else {
+                                ""
+                            }
+                        );
+                        printed_lines += 1;
                     }
 
                     for patch in data.patches() {
-                        let mut line_empty = true;
+                        let mut patch_line_empty = true;
 
                         if args.patch.get(PatchFeatures::SRC) {
-                            // TODO: wrap this more nicely
                             print!("{indent}");
-
-                            let (id, line_no) = patch.source();
-                            if let Err(err) =
-                                object.walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
-                                    if let Some((id, line)) = node.parent() {
-                                        print!("({line}) -> ");
-                                        // REPT nodes are prefixed by their parent's name
-                                        if matches!(node.type_data(), NodeType::Rept(..)) {
-                                            print!(
-                                                "{}",
-                                                object
-                                                    .node(id)
-                                                    .ok_or_else(|| NodeWalkError::bad_id(
-                                                        id, &object
-                                                    ))?
-                                                    .type_data()
-                                            );
-                                        }
-                                    } else {
-                                        // The root node should not be a REPT one
-                                        if matches!(node.type_data(), NodeType::Rept(..)) {
-                                            print!("<error>");
-                                            error!("REPT-type root file stack node");
-                                        }
-                                    }
-                                    print!("{}", node.type_data());
-                                    Ok(())
-                                })
-                            {
+                            if let Err(err) = print_source_nodes!(patch) {
                                 error!("Invalid patch file stack: {err}");
                             }
-
-                            print!("({line_no})");
-                            line_empty = false;
+                            patch_line_empty = false;
                         }
 
                         if args.patch.get(PatchFeatures::OFFSET) {
                             print!(
                                 "{}@ ${:04x}",
-                                if line_empty { indent } else { " " },
+                                if patch_line_empty { indent } else { " " },
                                 patch.offset()
                             );
-                            line_empty = false;
+                            patch_line_empty = false;
                         }
 
                         if args.patch.get(PatchFeatures::TYPE) {
                             print!(
                                 "{}({})",
-                                if line_empty { indent } else { " " },
+                                if patch_line_empty { indent } else { " " },
                                 patch.patch_type().name()
                             );
+                            patch_line_empty = false;
                         }
 
-                        let patch_indent = if !line_empty {
+                        if !patch_line_empty {
                             println!();
-                            "    "
-                        } else {
-                            ""
-                        };
+                            printed_lines += 1;
+                        }
+
+                        let patch_indent = if patch_line_empty { "" } else { "    " };
 
                         if args.patch.get(PatchFeatures::PCSECTION)
                             || args.patch.get(PatchFeatures::PCOFFSET)
@@ -510,6 +573,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                                 print!(" @ ${:04x}", patch.pc_offset());
                             }
                             println!();
+                            printed_lines += 1;
                         }
 
                         let expr = patch.expr();
@@ -517,30 +581,20 @@ fn work(args: &Args) -> Result<(), MainError> {
                             error!("Empty patch RPN expression");
                         } else {
                             if args.patch.get(PatchFeatures::RPN) {
-                                println!("{indent}{patch_indent}{} expression:", args.rpn);
-                                if matches!(args.rpn, RpnPrintType::Infix) {
-                                    println!("{indent}{patch_indent}    {expr:#}");
-                                } else {
-                                    println!("{indent}{patch_indent}    {expr}");
-                                }
+                                print_rpn_expr!(format!("{indent}{patch_indent}"), expr);
+                                printed_lines += 2;
                             }
-
                             if args.patch.get(PatchFeatures::DATA) {
-                                let len = patch.expr().bytes().len();
-                                println!(
-                                    "{indent}{patch_indent}RPN data ({len} byte{}):",
-                                    plural!(len, "s")
-                                );
-                                print!("{indent}{patch_indent}    [{:02x}", expr.bytes()[0]);
-                                // TODO: wrap this more nicely
-                                for byte in &expr.bytes()[1..] {
-                                    print!(" {byte:02x}");
-                                }
-                                println!("]");
+                                print_rpn_data!(format!("{indent}{patch_indent}"), expr);
+                                printed_lines += 2;
                             }
                         }
                     }
                 }
+            }
+
+            if printed_lines > 1 {
+                separate_lines = true;
             }
         }
     }
@@ -548,68 +602,49 @@ fn work(args: &Args) -> Result<(), MainError> {
     // Print assertions
 
     if args.assertion.any() && !object.assertions().is_empty() {
-        header!("Assertions");
+        print_header!("Assertions");
+
+        let mut separate_lines = false;
 
         for assertion in object.assertions() {
-            println!();
-            let mut line_empty = true;
+            if separate_lines {
+                println!();
+            }
+
+            let mut printed_lines = 0;
+            let mut first_line_empty = true;
 
             if args.assertion.get(AssertionFeatures::SRC) {
-                // TODO: wrap this more nicely
-                let (id, line_no) = assertion.source();
-                if let Err(err) = object.walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
-                    if let Some((id, line)) = node.parent() {
-                        print!("({line}) -> ");
-                        // REPT nodes are prefixed by their parent's name
-                        if matches!(node.type_data(), NodeType::Rept(..)) {
-                            print!(
-                                "{}",
-                                object
-                                    .node(id)
-                                    .ok_or_else(|| NodeWalkError::bad_id(id, &object))?
-                                    .type_data()
-                            );
-                        }
-                    } else {
-                        // The root node should not be a REPT one
-                        if matches!(node.type_data(), NodeType::Rept(..)) {
-                            print!("<error>");
-                            error!("REPT-type root file stack node");
-                        }
-                    }
-                    print!("{}", node.type_data());
-                    Ok(())
-                }) {
+                if let Err(err) = print_source_nodes!(assertion) {
                     error!("Invalid assertion file stack: {err}");
                 }
-
-                print!("({line_no})");
-                line_empty = false;
+                first_line_empty = false;
             }
 
             if args.assertion.get(AssertionFeatures::OFFSET) {
                 print!(
                     "{}@ ${:04x}",
-                    if line_empty { "" } else { " " },
+                    if first_line_empty { "" } else { " " },
                     assertion.offset()
                 );
-                line_empty = false;
+                first_line_empty = false;
             }
 
             if args.assertion.get(AssertionFeatures::TYPE) {
                 print!(
                     "{}({})",
-                    if line_empty { "" } else { " " },
+                    if first_line_empty { "" } else { " " },
                     assertion.err_type().name()
                 );
+                first_line_empty = false;
             }
 
-            let indent = if !line_empty {
+            if !first_line_empty {
                 println!();
-                "    "
-            } else {
-                ""
-            };
+                printed_lines += 1;
+            }
+
+            let indent = if first_line_empty { "" } else { "    " };
 
             if args.assertion.get(AssertionFeatures::SECTION)
                 || args.assertion.get(AssertionFeatures::PCOFFSET)
@@ -635,6 +670,7 @@ fn work(args: &Args) -> Result<(), MainError> {
                     print!(" @ ${:04x}", assertion.pc_offset());
                 }
                 println!();
+                printed_lines += 1;
             }
 
             let expr = assertion.expr();
@@ -642,23 +678,12 @@ fn work(args: &Args) -> Result<(), MainError> {
                 error!("Empty assertion RPN expression");
             } else {
                 if args.assertion.get(AssertionFeatures::RPN) {
-                    println!("{indent}{} expression:", args.rpn);
-                    if matches!(args.rpn, RpnPrintType::Infix) {
-                        println!("{indent}    {expr:#}");
-                    } else {
-                        println!("{indent}    {expr}");
-                    }
+                    print_rpn_expr!(format!("{indent}"), expr);
+                    printed_lines += 2;
                 }
-
                 if args.assertion.get(AssertionFeatures::DATA) {
-                    let len = assertion.expr().bytes().len();
-                    println!("{indent}RPN data ({len} byte{}):", plural!(len, "s"));
-                    print!("{indent}    [{:02x}", expr.bytes()[0]);
-                    // TODO: wrap this more nicely
-                    for byte in &expr.bytes()[1..] {
-                        print!(" {byte:02x}");
-                    }
-                    println!("]");
+                    print_rpn_data!(format!("{indent}"), expr);
+                    printed_lines += 2;
                 }
             }
 
@@ -669,6 +694,11 @@ fn work(args: &Args) -> Result<(), MainError> {
                 } else {
                     println!("{indent}Message: \"{}\"", String::from_utf8_lossy(msg));
                 }
+                printed_lines += 1;
+            }
+
+            if printed_lines > 1 {
+                separate_lines = true;
             }
         }
     }
@@ -691,9 +721,7 @@ impl Display for MainError {
     }
 }
 
-impl Error for MainError {
-    // add code here
-}
+impl Error for MainError {}
 
 impl From<io::Error> for MainError {
     fn from(err: io::Error) -> Self {

@@ -150,6 +150,8 @@ directive containing the relevant requested info.
 Keyword list of what to display about symbols.
 The following keywords are accepted:
 .Bl -tag -width Ds -compact
+.It Cm id
+The symbol's ID number within the object file, as used in RPN expressions.
 .It Cm name
 The symbol's name, decoded as UTF-8.
 .It Cm section
@@ -170,9 +172,11 @@ Trailing commas are not allowed (though this is subject to change in the future)
 A keyword can be prefixed with a dash
 .Ql -
 to negate it; note that whitespace is not permitted between the dash and the keyword, and that the first keyword in a list may not be negated.
-The special keyword
+The special keywords
 .Ql all
-is also accepted, enabling (or disabling, if negated) all keywords, unless specified otherwise.
+and
+.Ql none
+are also accepted, enabling or disabling all keywords (or vice-versa if negated), unless specified otherwise.
 .Pp
 Keyword lists can be omitted, in which case they default to their "min" value, as specified in their respective description.
 If the option is omitted entirely, however, nothing will be selected, and thus, nothing will be printed.
