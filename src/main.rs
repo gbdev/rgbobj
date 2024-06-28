@@ -204,7 +204,11 @@ fn work(args: &Args) -> Result<(), MainError> {
         let len = file.get_ref().metadata().unwrap().len();
         print!(" [{len} byte{}]", plural!(len, "s"));
     }
-    println!(": RGBDS object v9 revision {}", object.revision());
+    println!(
+        ": RGBDS object v{} revision {}",
+        object.version(),
+        object.revision()
+    );
 
     if args.header.get(HeaderFeatures::COUNTS) {
         println!("    Symbols: {}", object.symbols().len());
