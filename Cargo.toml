@@ -1,6 +1,6 @@
 [package]
 name = "rgbobj"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["ISSOtm <me@eldred.fr>"]
 edition = "2018"
 description = "A command-line program to print out RGBDS object files."
