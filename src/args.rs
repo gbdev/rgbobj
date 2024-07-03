@@ -313,15 +313,14 @@ pub fn parse() -> Args {
         Colorization::Always => (ColorChoice::Always, ColorChoice::Always),
         Colorization::Never => (ColorChoice::Never, ColorChoice::Never),
         Colorization::Auto => {
-            use atty::Stream::*;
-            let auto = |stream| {
-                if atty::is(stream) {
+            fn auto(stream: impl std::io::IsTerminal) -> ColorChoice {
+                if stream.is_terminal() {
                     ColorChoice::Auto
                 } else {
                     ColorChoice::Never
                 }
-            };
-            (auto(Stdout), auto(Stderr))
+            }
+            (auto(std::io::stdout()), auto(std::io::stderr()))
         }
     };
 
