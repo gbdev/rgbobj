@@ -143,7 +143,6 @@ checksum = "b801be867c2f9f4cc495199b900023cb547be9f2c5814ad1864987e7cc418b56"
 name = "rgbobj"
 version = "0.3.0"
 dependencies = [
- "atty",
  "clap",
  "paste",
  "rgbds-obj",

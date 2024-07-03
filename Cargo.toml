@@ -13,7 +13,6 @@ categories = ["command-line-utilities", "development-tools::debugging", "game-de
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-atty = "0.2.14"
 paste = "1.0"
 rgbds-obj = "0.2"
 sigpipe = "0.1.3"
