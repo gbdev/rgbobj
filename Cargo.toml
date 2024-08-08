@@ -1,7 +1,7 @@
 [package]
 name = "rgbobj"
-version = "0.3.0"
-authors = ["ISSOtm <me@eldred.fr>"]
+version = "0.4.0" # Remember to sync html_root_url in `main.rs`
+authors = ["ISSOtm <me@eldred.fr>", "Rangi42"]
 edition = "2018"
 description = "A command-line program to print out RGBDS object files."
 readme = "README.md"
@@ -14,7 +14,7 @@ categories = ["command-line-utilities", "development-tools::debugging", "game-de
 
 [dependencies]
 paste = "1.0"
-rgbds-obj = "0.2"
+rgbds-obj = "0.3.0"
 sigpipe = "0.1.3"
 termcolor = "1.1.2"
 

@@ -1,3 +1,5 @@
+#![doc(html_root_url = "https://docs.rs/rgbobj/0.4.0")]
+
 use rgbds_obj::{Node, NodeType, NodeWalkError, Object};
 use std::convert::{Infallible, TryFrom};
 use std::error::Error;
