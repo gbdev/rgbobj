@@ -206,7 +206,7 @@ fn work(args: &Args) -> Result<(), MainError> {
     }
     println!(
         ": RGBDS object v{} revision {}",
-        object.version(),
+        object.version() as char,
         object.revision()
     );
 
