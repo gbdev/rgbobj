@@ -233,7 +233,7 @@ pub mod features {
 
     features!(HeaderFeatures: +size, counts);
     features!(SymbolFeatures: +name, type, src, section, value, id);
-    features!(SectionFeatures: +name, size, type, org, bank, align, data);
+    features!(SectionFeatures: +name, size, type, org, bank, align, src, data);
     features!(PatchFeatures: +count, src, offset, pcsection, pcoffset, type, rpn, data);
     features!(AssertionFeatures: +src, +offset, section, pcoffset, type, rpn, -data, +message);
 }

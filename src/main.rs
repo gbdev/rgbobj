@@ -123,9 +123,9 @@ fn work(args: &Args) -> Result<(), MainError> {
         };
     }
 
-    macro_rules! print_source_nodes {
+    macro_rules! print_source_nodes_helper {
         ($source:expr) => {{
-            let (id, line_no) = ($source).source();
+            let (id, line_no) = $source;
             // TODO: wrap the node stack nicely
             object
                 .walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
@@ -155,6 +155,21 @@ fn work(args: &Args) -> Result<(), MainError> {
                     print!("({line_no})");
                     Ok(())
                 })
+        }};
+    }
+
+    macro_rules! print_source_nodes {
+        ($source:expr) => {{
+            print_source_nodes_helper!(($source).source())
+        }};
+    }
+
+    macro_rules! opt_print_source_nodes {
+        ($source:expr) => {{
+            match ($source).source() {
+                Some(tup) => print_source_nodes_helper!(tup),
+                _ => Ok(()),
+            }
         }};
     }
 
@@ -396,6 +411,15 @@ fn work(args: &Args) -> Result<(), MainError> {
             }
 
             let indent = if first_line_empty { "" } else { "    " };
+
+            if args.section.get(SectionFeatures::SRC) {
+                print!("{indent}");
+                if let Err(err) = opt_print_source_nodes!(section) {
+                    error!("Invalid section file stack: {}", err);
+                }
+                println!();
+                printed_lines += 1;
+            }
 
             if args.section.get(SectionFeatures::SIZE) {
                 let len = section.size();
