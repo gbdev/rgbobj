@@ -1,6 +1,6 @@
 [package]
 name = "rgbobj"
-version = "0.6.0" # Remember to sync html_root_url in `main.rs`
+version = "1.0.0" # Remember to sync html_root_url in `main.rs`
 authors = ["ISSOtm <me@eldred.fr>", "Rangi42"]
 edition = "2018"
 description = "A command-line program to print out RGBDS object files."

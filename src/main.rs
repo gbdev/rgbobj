@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/rgbobj/0.6.0")]
+#![doc(html_root_url = "https://docs.rs/rgbobj/1.0.0")]
 
 use rgbds_obj::{Node, NodeType, Object};
 use std::convert::{Infallible, TryFrom};
