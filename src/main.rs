@@ -1,6 +1,6 @@
 #![doc(html_root_url = "https://docs.rs/rgbobj/0.6.0")]
 
-use rgbds_obj::{Node, NodeType, NodeWalkError, Object};
+use rgbds_obj::{Node, NodeType, Object};
 use std::convert::{Infallible, TryFrom};
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
@@ -48,6 +48,20 @@ macro_rules! plural {
     ($n:expr, $many:expr) => {
         plural!($n, $many, "")
     };
+}
+
+fn rept_parent_non_rept<'a>(object: &'a Object, node: &'a Node) -> Option<&'a Node> {
+    match node.type_data() {
+        NodeType::Rept(..) => node.parent().and_then(|(parent_id, _)| {
+            object
+                .node(parent_id)
+                .and_then(|parent| match parent.type_data() {
+                    NodeType::Rept(..) => rept_parent_non_rept(object, parent),
+                    _ => Some(parent),
+                })
+        }),
+        _ => None,
+    }
 }
 
 fn work(args: &Args) -> Result<(), MainError> {
@@ -129,34 +143,25 @@ fn work(args: &Args) -> Result<(), MainError> {
         ($source:expr) => {{
             let (id, line_no) = $source;
             // TODO: wrap the node stack nicely
-            object
-                .walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
-                    if let Some((id, line)) = node.parent() {
-                        print!("({line}) -> ");
-                        // REPT nodes are prefixed by their parent's name
-                        if matches!(node.type_data(), NodeType::Rept(..)) {
-                            print!(
-                                "{}",
-                                object
-                                    .node(id)
-                                    .ok_or_else(|| NodeWalkError::bad_id(id, &object))?
-                                    .type_data()
-                            );
-                        }
-                    } else {
-                        // The root node should not be a REPT one
-                        if matches!(node.type_data(), NodeType::Rept(..)) {
-                            print!("<error>");
-                            error!("REPT-type root file stack node");
-                        }
-                    }
-                    print!("{}", node.type_data());
-                    Ok(())
-                })
-                .and_then(|()| -> Result<_, NodeWalkError<Infallible>> {
-                    print!("({line_no})");
-                    Ok(())
-                })
+            object.walk_nodes::<Infallible, _>(id, line_no, &mut |node: &Node, line_no: u32| {
+                if node.parent().is_some() {
+                    print!(" -> ");
+                } else if matches!(node.type_data(), NodeType::Rept(..)) {
+                    // The root node should not be a REPT one
+                    error!("REPT-type root file stack node");
+                }
+
+                // REPT nodes are prefixed by their parent's name
+                if let Some(non_rept) = rept_parent_non_rept(&object, node) {
+                    print!("{}", non_rept.type_data());
+                }
+
+                print!("{}({})", node.type_data(), line_no);
+                if *node.is_quiet() {
+                    print!("?");
+                }
+                Ok(())
+            })
         }};
     }
 
