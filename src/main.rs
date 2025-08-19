@@ -50,17 +50,23 @@ macro_rules! plural {
     };
 }
 
+fn is_rept(node: &Node) -> bool {
+    matches!(node.type_data(), NodeType::Rept(..))
+}
+
 fn rept_parent_non_rept<'a>(object: &'a Object, node: &'a Node) -> Option<&'a Node> {
-    match node.type_data() {
-        NodeType::Rept(..) => node.parent().and_then(|(parent_id, _)| {
-            object
-                .node(parent_id)
-                .and_then(|parent| match parent.type_data() {
-                    NodeType::Rept(..) => rept_parent_non_rept(object, parent),
-                    _ => Some(parent),
-                })
-        }),
-        _ => None,
+    if is_rept(node) {
+        node.parent().and_then(|(parent_id, _)| {
+            object.node(parent_id).and_then(|parent| {
+                if is_rept(parent) {
+                    rept_parent_non_rept(object, parent)
+                } else {
+                    Some(parent)
+                }
+            })
+        })
+    } else {
+        None
     }
 }
 
@@ -146,7 +152,7 @@ fn work(args: &Args) -> Result<(), MainError> {
             object.walk_nodes::<Infallible, _>(id, line_no, &mut |node: &Node, line_no: u32| {
                 if node.parent().is_some() {
                     print!(" -> ");
-                } else if matches!(node.type_data(), NodeType::Rept(..)) {
+                } else if is_rept(node) {
                     // The root node should not be a REPT one
                     error!("REPT-type root file stack node");
                 }
