@@ -1,7 +1,7 @@
 #![doc(html_root_url = "https://docs.rs/rgbobj/1.0.0")]
 
 use either::Either;
-use rgbds_obj::{Node, NodeType, Object};
+use rgbds_obj::{Node, Object};
 use std::convert::{Infallible, TryFrom};
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
@@ -49,23 +49,17 @@ macro_rules! plural {
     };
 }
 
-fn is_rept(node: &Node) -> bool {
-    matches!(node.type_data(), NodeType::Rept(..))
-}
-
 fn rept_parent_non_rept<'a>(object: &'a Object, node: &'a Node) -> Option<&'a Node> {
-    if is_rept(node) {
-        node.parent().and_then(|(parent_id, _)| {
-            object.node(parent_id).and_then(|parent| {
-                if is_rept(parent) {
-                    rept_parent_non_rept(object, parent)
-                } else {
-                    Some(parent)
-                }
-            })
-        })
-    } else {
-        None
+    let mut node = node;
+    if !node.is_rept() {
+        return None;
+    }
+    loop {
+        let (parent_id, _) = node.parent()?;
+        node = object.node(parent_id)?;
+        if !node.is_rept() {
+            return Some(node)
+        }
     }
 }
 
@@ -151,7 +145,7 @@ fn work(args: &Args) -> Result<(), MainError> {
             object.walk_nodes::<Infallible, _>(id, line_no, &mut |node: &Node, line_no: u32| {
                 if node.parent().is_some() {
                     print!(" -> ");
-                } else if is_rept(node) {
+                } else if node.is_rept() {
                     // The root node should not be a REPT one
                     error!("REPT-type root file stack node");
                 }
