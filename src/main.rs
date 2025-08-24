@@ -1,12 +1,11 @@
 #![doc(html_root_url = "https://docs.rs/rgbobj/1.0.0")]
 
+use either::Either;
 use rgbds_obj::{Node, NodeType, Object};
 use std::convert::{Infallible, TryFrom};
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-use std::fs::File;
-use std::io::{self, BufReader, Write};
-use std::path::Path;
+use std::io::{self, Write};
 use std::process;
 use termcolor::{ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -110,7 +109,7 @@ fn work(args: &Args) -> Result<(), MainError> {
         };
     }
 
-    let mut file = BufReader::new(File::open(&args.path)?);
+    let mut file = args.path.open()?;
     let object = Object::read_from(&mut file)?;
     let mut stdout = StandardStream::stdout(args.color_out);
 
@@ -222,16 +221,23 @@ fn work(args: &Args) -> Result<(), MainError> {
 
     // Print header
 
-    setup!(bold);
-    print!(
-        "{}",
-        Path::new(&args.path).file_name().unwrap().to_string_lossy()
-    );
-    reset!();
-    if args.header.get(HeaderFeatures::SIZE) {
-        let len = file.get_ref().metadata().unwrap().len();
-        print!(" [{len} byte{}]", plural!(len, "s"));
+    match file {
+        Either::Left(_) => {
+            setup!(bold);
+            print!("<stdin>");
+            reset!();
+        }
+        Either::Right(reader) => {
+            setup!(bold);
+            print!("{}", args.path);
+            reset!();
+            if args.header.get(HeaderFeatures::SIZE) {
+                let len = reader.get_ref().metadata().unwrap().len();
+                print!(" [{len} byte{}]", plural!(len, "s"));
+            }
+        }
     }
+
     println!(
         ": RGBDS object v{} revision {}",
         object.version() as char,
