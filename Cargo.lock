@@ -158,6 +158,8 @@ dependencies = [
 [[package]]
 name = "rgbds-obj"
 version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78b47a6acadc81d8499ec0d3d4de7cfd7f55b1bdbe0fe611d5268a5fbadc1773"
 
 [[package]]
 name = "rgbobj"
