@@ -1,12 +1,11 @@
-#![doc(html_root_url = "https://docs.rs/rgbobj/0.5.0")]
+#![doc(html_root_url = "https://docs.rs/rgbobj/1.0.0")]
 
-use rgbds_obj::{Node, NodeType, NodeWalkError, Object};
+use either::Either;
+use rgbds_obj::{Node, Object};
 use std::convert::{Infallible, TryFrom};
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-use std::fs::File;
-use std::io::{self, BufReader, Write};
-use std::path::Path;
+use std::io::{self, Write};
 use std::process;
 use termcolor::{ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -50,6 +49,20 @@ macro_rules! plural {
     };
 }
 
+fn rept_parent_non_rept<'a>(object: &'a Object, node: &'a Node) -> Option<&'a Node> {
+    let mut node = node;
+    if !node.is_rept() {
+        return None;
+    }
+    loop {
+        let (parent_id, _) = node.parent()?;
+        node = object.node(parent_id)?;
+        if !node.is_rept() {
+            return Some(node)
+        }
+    }
+}
+
 fn work(args: &Args) -> Result<(), MainError> {
     macro_rules! error {
         ($($args:tt)+) => {
@@ -90,7 +103,7 @@ fn work(args: &Args) -> Result<(), MainError> {
         };
     }
 
-    let mut file = BufReader::new(File::open(&args.path)?);
+    let mut file = args.path.open()?;
     let object = Object::read_from(&mut file)?;
     let mut stdout = StandardStream::stdout(args.color_out);
 
@@ -129,34 +142,25 @@ fn work(args: &Args) -> Result<(), MainError> {
         ($source:expr) => {{
             let (id, line_no) = $source;
             // TODO: wrap the node stack nicely
-            object
-                .walk_nodes::<Infallible, _>(id, &mut |node: &Node| {
-                    if let Some((id, line)) = node.parent() {
-                        print!("({line}) -> ");
-                        // REPT nodes are prefixed by their parent's name
-                        if matches!(node.type_data(), NodeType::Rept(..)) {
-                            print!(
-                                "{}",
-                                object
-                                    .node(id)
-                                    .ok_or_else(|| NodeWalkError::bad_id(id, &object))?
-                                    .type_data()
-                            );
-                        }
-                    } else {
-                        // The root node should not be a REPT one
-                        if matches!(node.type_data(), NodeType::Rept(..)) {
-                            print!("<error>");
-                            error!("REPT-type root file stack node");
-                        }
-                    }
-                    print!("{}", node.type_data());
-                    Ok(())
-                })
-                .and_then(|()| -> Result<_, NodeWalkError<Infallible>> {
-                    print!("({line_no})");
-                    Ok(())
-                })
+            object.walk_nodes::<Infallible, _>(id, line_no, &mut |node: &Node, line_no: u32| {
+                if node.parent().is_some() {
+                    print!(" -> ");
+                } else if node.is_rept() {
+                    // The root node should not be a REPT one
+                    error!("REPT-type root file stack node");
+                }
+
+                // REPT nodes are prefixed by their parent's name
+                if let Some(non_rept) = rept_parent_non_rept(&object, node) {
+                    print!("{}", non_rept.type_data());
+                }
+
+                print!("{}({})", node.type_data(), line_no);
+                if *node.is_quiet() {
+                    print!("?");
+                }
+                Ok(())
+            })
         }};
     }
 
@@ -211,16 +215,23 @@ fn work(args: &Args) -> Result<(), MainError> {
 
     // Print header
 
-    setup!(bold);
-    print!(
-        "{}",
-        Path::new(&args.path).file_name().unwrap().to_string_lossy()
-    );
-    reset!();
-    if args.header.get(HeaderFeatures::SIZE) {
-        let len = file.get_ref().metadata().unwrap().len();
-        print!(" [{len} byte{}]", plural!(len, "s"));
+    match file {
+        Either::Left(_) => {
+            setup!(bold);
+            print!("<stdin>");
+            reset!();
+        }
+        Either::Right(reader) => {
+            setup!(bold);
+            print!("{}", args.path);
+            reset!();
+            if args.header.get(HeaderFeatures::SIZE) {
+                let len = reader.get_ref().metadata().unwrap().len();
+                print!(" [{len} byte{}]", plural!(len, "s"));
+            }
+        }
     }
+
     println!(
         ": RGBDS object v{} revision {}",
         object.version() as char,

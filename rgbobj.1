@@ -1,9 +1,9 @@
 .\"
-.\" Copyright © 2021 Eldred Habert
+.\" Copyright © 2025 Eldred Habert and Sylvie Oukaour
 .\"
 .\" SPDX-License-Identifier: MIT
 .\"
-.Dd May 2, 2021
+.Dd October 31, 2025
 .Dt RGBOBJ 1
 .Os
 .Sh NAME
@@ -23,6 +23,12 @@
 .Sh DESCRIPTION
 .Nm
 allows examining RGBDS object files in a human-friendly manner.
+.Pp
+The input
+.Ar path
+can be a path to an object file, or
+.Cm \-
+to read from standard input.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -214,7 +220,7 @@ It may also report 0 bytes, e.g. if the input file is a FIFO.
 The output format may be flakey if not requesting at least the name when it's present.
 .Pp
 Please report other bugs on
-.Lk https://github.com/ISSOtm/rgbobj/issues GitHub .
+.Lk https://github.com/gbdev/rgbobj/issues GitHub .
 .Sh SEE ALSO
 .Xr rgbasm 1 ,
 .Xr rgblink 1 ,

@@ -2,7 +2,7 @@
 
 use clap::builder::PossibleValue;
 use clap::{arg, command, value_parser, Command, ValueEnum};
-use std::ffi::OsString;
+use patharg::InputArg;
 use std::fmt::{self, Display, Formatter};
 use std::stringify;
 use termcolor::ColorChoice;
@@ -302,7 +302,7 @@ fn get_cmd() -> Command<'static> {
         .arg(arg!(-s --section <features> "Keyword list of what to display about sections").value_parser(value_parser!(SectionFeatures)).default_value(SectionFeatures::DEFAULT).required(false))
         .arg(arg!(-p --patch <features> "Keyword list of what to display about patches").value_parser(value_parser!(PatchFeatures)).default_value(PatchFeatures::DEFAULT).required(false))
         .arg(arg!(-a --assertion <features> "Keyword list of what to display about assertions").value_parser(value_parser!(AssertionFeatures)).default_value(AssertionFeatures::DEFAULT).required(false))
-        .arg(arg!(<file> "Path to the object file to inspect"))
+        .arg(arg!(<file> "Path to the object file to inspect (use '-' for standard input)"))
 }
 
 /// Parse command-line arguments.
@@ -356,7 +356,7 @@ pub fn parse() -> Args {
         patch,
         assertion,
 
-        path: matches.value_of("file").unwrap().into(),
+        path: InputArg::from(matches.value_of("file").unwrap()),
 
         color_out,
         color_err,
@@ -374,7 +374,7 @@ pub struct Args {
     pub patch: PatchFeatures,
     pub assertion: AssertionFeatures,
 
-    pub path: OsString,
+    pub path: InputArg,
 
     pub color_out: ColorChoice,
     pub color_err: ColorChoice,
